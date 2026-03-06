@@ -1,28 +1,19 @@
 # Dependencies
 demo-app/node_modules/
 demo-app/.next/
+demo-app/out/
 
-# Environment files (contain Azure config)
+# Environment (contains Azure config)
 demo-app/.env.local
 demo-app/.env*.local
 
-# Build outputs
-demo-app/out/
-*.json.bak
-main.json
+# Build artifacts
+infra/main.json
 
 # OS
 .DS_Store
 Thumbs.db
 
 # IDE
-.vscode/
+.vscode/settings.json
 .idea/
-
-# Bicep build artifacts
-*.json
-!demo-app/package.json
-!demo-app/package-lock.json
-!demo-app/tsconfig.json
-!demo-app/next.config.ts
-!demo-app/eslint.config.mjs

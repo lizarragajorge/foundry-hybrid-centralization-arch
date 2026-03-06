@@ -59,8 +59,8 @@ Write-Host "  OK - Subscription: $($account.name) ($($account.id))" -ForegroundC
 
 Write-Host "[3/5] Validating Bicep template..." -ForegroundColor Yellow
 
-$templatePath = Join-Path (Join-Path $PSScriptRoot "..") "main.bicep"
-$paramsPath = Join-Path (Join-Path $PSScriptRoot "..") "main.bicepparam"
+$templatePath = Join-Path (Join-Path $PSScriptRoot "..") "infra\main.bicep"
+$paramsPath = Join-Path (Join-Path $PSScriptRoot "..") "infra\main.bicepparam"
 
 $ErrorActionPreference = "Continue"
 
