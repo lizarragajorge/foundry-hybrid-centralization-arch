@@ -102,7 +102,7 @@ export function SectionHeader({
   badge?: string;
 }) {
   return (
-    <div className="mb-6">
+    <div>
       <div className="flex items-center gap-3 mb-1">
         <h2 className="text-2xl font-bold text-white">{title}</h2>
         {badge && <Badge color="purple">{badge}</Badge>}

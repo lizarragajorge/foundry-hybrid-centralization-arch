@@ -1,12 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { AzureCliCredential } from "@azure/identity";
+import { trace as otelTrace, SpanStatusCode } from "@opentelemetry/api";
 
 const endpoint = process.env.AZURE_FOUNDRY_ENDPOINT || "";
+const tracer = otelTrace.getTracer("guardrails-api");
 
 export async function POST(req: NextRequest) {
+  return tracer.startActiveSpan("guardrails.check", async (span) => {
   try {
     const body = await req.json();
     const { messages, deployment = "gpt-4o-mini", maxTokens = 100 } = body;
+
+    span.setAttribute("guardrails.deployment", deployment);
+    span.setAttribute("guardrails.policy", "Microsoft.DefaultV2");
 
     let token: string;
     try {
@@ -17,6 +23,8 @@ export async function POST(req: NextRequest) {
       token = tokenResponse.token;
     } catch (authErr) {
       const msg = authErr instanceof Error ? authErr.message : "Auth failed";
+      span.setStatus({ code: SpanStatusCode.ERROR, message: msg });
+      span.end();
       return NextResponse.json({ error: `Auth error: ${msg}`, blocked: false }, { status: 500 });
     }
 
@@ -44,8 +52,8 @@ export async function POST(req: NextRequest) {
     const wasBlocked = response.status === 400 && data.error?.code === "content_filter";
     const innerError = data.error?.innererror;
 
-    // Build a structured trace
-    const trace = {
+    // Build a structured trace result
+    const traceResult = {
       blocked: wasBlocked,
       httpStatus: response.status,
       latencyMs,
@@ -80,9 +88,18 @@ export async function POST(req: NextRequest) {
       deployment,
     };
 
-    return NextResponse.json(trace);
+    span.setAttribute("guardrails.blocked", wasBlocked);
+    span.setAttribute("guardrails.http_status", response.status);
+    span.setAttribute("guardrails.latency_ms", latencyMs);
+    span.setStatus({ code: wasBlocked ? SpanStatusCode.OK : SpanStatusCode.OK });
+    span.end();
+
+    return NextResponse.json(traceResult);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
+    span.setStatus({ code: SpanStatusCode.ERROR, message });
+    span.end();
     return NextResponse.json({ error: message, blocked: false }, { status: 500 });
   }
+  });
 }

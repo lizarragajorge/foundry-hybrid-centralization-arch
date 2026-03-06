@@ -15,6 +15,8 @@ import CostCalculator from "@/components/cost/CostCalculator";
 import RequestTraceViewer from "@/components/trace/RequestTraceViewer";
 import MultiLoadTest from "@/components/loadtest/MultiLoadTest";
 import GuardrailsDemo from "@/components/guardrails/GuardrailsDemo";
+import BUFilterBar from "@/components/ui/BUFilterBar";
+import { BUProvider } from "@/lib/bu-context";
 import { SectionHeader } from "@/components/ui/shared";
 
 const tabs = [
@@ -83,6 +85,7 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<TabId>("architecture");
 
   return (
+    <BUProvider>
     <div className="min-h-screen">
       {/* Hero Header */}
       <header className="relative border-b border-[#2d3561] overflow-hidden">
@@ -161,11 +164,14 @@ export default function Home() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-6 py-8">
-        <SectionHeader
-          title={tabMeta[activeTab].title}
-          subtitle={tabMeta[activeTab].subtitle}
-          badge={tabMeta[activeTab].badge}
-        />
+        <div className="flex items-center justify-between mb-6">
+          <SectionHeader
+            title={tabMeta[activeTab].title}
+            subtitle={tabMeta[activeTab].subtitle}
+            badge={tabMeta[activeTab].badge}
+          />
+          {["telemetry", "cost"].includes(activeTab) && <BUFilterBar />}
+        </div>
 
         <AnimatePresence mode="wait">
           <motion.div
@@ -196,5 +202,6 @@ export default function Home() {
         </div>
       </footer>
     </div>
+    </BUProvider>
   );
 }

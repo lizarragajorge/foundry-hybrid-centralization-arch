@@ -1,12 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
-import { DefaultAzureCredential, AzureCliCredential } from "@azure/identity";
+import { AzureCliCredential } from "@azure/identity";
+import { trace, SpanStatusCode } from "@opentelemetry/api";
 
 const endpoint = process.env.AZURE_FOUNDRY_ENDPOINT || "";
+const tracer = trace.getTracer("foundry-api");
 
 export async function POST(req: NextRequest) {
+  return tracer.startActiveSpan("foundry.inference", async (span) => {
   try {
     const body = await req.json();
     const { deployment, messages, input, maxTokens = 200 } = body;
+
+    span.setAttribute("foundry.deployment", deployment);
+    span.setAttribute("foundry.max_tokens", maxTokens);
+    span.setAttribute("foundry.is_embedding", deployment.includes("embedding"));
 
     // Create credential per-request to avoid stale token issues in dev
     let token: string;
@@ -16,8 +23,11 @@ export async function POST(req: NextRequest) {
         "https://cognitiveservices.azure.com/.default"
       );
       token = tokenResponse.token;
+      span.setAttribute("foundry.auth_method", "EntraID");
     } catch (authErr) {
       const msg = authErr instanceof Error ? authErr.message : "Auth failed";
+      span.setStatus({ code: SpanStatusCode.ERROR, message: msg });
+      span.end();
       return NextResponse.json({ error: `Auth error: ${msg}` }, { status: 500 });
     }
 
@@ -53,8 +63,15 @@ export async function POST(req: NextRequest) {
 
     const data = await response.json();
 
+    // Record token usage in span
+    span.setAttribute("foundry.prompt_tokens", data.usage?.prompt_tokens || 0);
+    span.setAttribute("foundry.completion_tokens", data.usage?.completion_tokens || 0);
+    span.setAttribute("foundry.total_tokens", data.usage?.total_tokens || 0);
+    span.setAttribute("foundry.latency_ms", latency);
+    span.setStatus({ code: SpanStatusCode.OK });
+
     // Enrich with metadata for the dashboard
-    return NextResponse.json({
+    const result = NextResponse.json({
       ...data,
       _meta: {
         deployment,
@@ -64,8 +81,13 @@ export async function POST(req: NextRequest) {
         isEmbedding,
       },
     });
+    span.end();
+    return result;
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
+    span.setStatus({ code: SpanStatusCode.ERROR, message });
+    span.end();
     return NextResponse.json({ error: message }, { status: 500 });
   }
+  });
 }
