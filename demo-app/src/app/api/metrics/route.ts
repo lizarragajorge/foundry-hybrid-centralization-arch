@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { AzureCliCredential } from "@azure/identity";
+import { DefaultAzureCredential } from "@azure/identity";
 
 export async function GET() {
   try {
@@ -7,7 +7,7 @@ export async function GET() {
     const resourceGroup = process.env.AZURE_FOUNDRY_RESOURCE_GROUP || "";
     const foundryName = process.env.AZURE_FOUNDRY_NAME || "";
 
-    const credential = new AzureCliCredential();
+    const credential = new DefaultAzureCredential();
     const tokenResponse = await credential.getToken(
       "https://management.azure.com/.default"
     );
@@ -76,7 +76,9 @@ export async function GET() {
           }
         }
       }
-    } catch { /* per-deployment metrics are optional */ }
+    } catch (err) {
+      console.error("[metrics] Failed to fetch per-deployment metrics:", err instanceof Error ? err.message : err);
+    }
 
     return NextResponse.json({
       metrics,

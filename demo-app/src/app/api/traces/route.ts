@@ -1,19 +1,20 @@
 import { NextResponse } from "next/server";
-import { AzureCliCredential } from "@azure/identity";
+import { DefaultAzureCredential } from "@azure/identity";
 
 // Query Application Insights for OTel trace data
 export async function GET() {
   try {
-    const credential = new AzureCliCredential();
+    const credential = new DefaultAzureCredential();
     const tokenResponse = await credential.getToken(
       "https://api.applicationinsights.io/.default"
     );
 
-    const appId = process.env.APPLICATIONINSIGHTS_CONNECTION_STRING
-      ?.match(/ApplicationId=([^;]+)/)?.[1];
+    // App ID must be provided separately — it is NOT in the connection string.
+    // Find it in Azure Portal > App Insights > API Access > Application ID.
+    const appId = process.env.APPINSIGHTS_APP_ID;
 
     if (!appId) {
-      return NextResponse.json({ error: "No App Insights ApplicationId configured" }, { status: 500 });
+      return NextResponse.json({ error: "No App Insights App ID configured. Set APPINSIGHTS_APP_ID env var." }, { status: 500 });
     }
 
     // Query recent requests from App Insights

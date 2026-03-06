@@ -78,6 +78,9 @@ resource actionGroup 'Microsoft.Insights/actionGroups@2023-09-01-preview' = if (
   }
 }
 
+@description('Action group ID for alerts')
+output actionGroupId string = !empty(alertEmails) ? actionGroup.id : ''
+
 @description('Log Analytics Workspace ID')
 output logAnalyticsWorkspaceId string = logAnalytics.id
 

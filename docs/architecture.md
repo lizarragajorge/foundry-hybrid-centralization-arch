@@ -137,7 +137,42 @@ vnet-foundry-engineering (10.3.0.0/16) [same structure]
 
 All spoke VNets peer bidirectionally to the hub. **Spokes do not peer to each other** — BU traffic is isolated at the network level.
 
-Private endpoints are prepared (subnet provisioned, NSG attached) but not deployed in the PoC. For production, add a `Microsoft.Network/privateEndpoints` resource targeting the Foundry resource and set `publicNetworkAccess: 'Disabled'`.
+Private endpoints are now available as an opt-in module. Set `enablePrivateEndpoints = true` and `hubPublicNetworkAccess = 'Disabled'` in `main.bicepparam` to deploy:
+
+- Private Endpoints for Foundry and Key Vault in the hub PE subnet
+- Private DNS Zones (`privatelink.cognitiveservices.azure.com`, `privatelink.openai.azure.com`, `privatelink.vaultcore.azure.net`)
+- VNet links from all VNets (hub + spokes) to each DNS zone
+
+---
+
+## API Gateway Layer (Production Recommendation)
+
+For production multi-tenant deployments, consider placing an **Azure API Management (APIM)** instance or the **Azure AI Gateway** pattern in front of the Foundry endpoints. This is not deployed in the reference implementation but is the recommended next step for enterprises.
+
+### Why an AI Gateway?
+
+| Concern | How APIM Solves It |
+|---------|--------------------|
+| **Per-consumer rate limiting** | Token-based quotas per BU or per-application via APIM policies |
+| **Multi-region load balancing** | Backend pools across multiple Foundry deployments in different regions |
+| **Circuit breaking** | Automatic failover when a backend is unhealthy |
+| **Retry with exponential backoff** | Policy-based retry on 429/5xx before surfacing the error |
+| **Chargeback metering** | Emit per-consumer usage events to Event Hubs for cost allocation |
+| **Prompt logging / PII scrubbing** | Policy-based request/response transformation |
+| **Semantic caching** | Cache responses for identical prompts to reduce cost |
+
+### Reference Architecture
+
+```
+BU App  ──►  APIM Gateway  ──►  Foundry Hub (eastus2)
+                 │                    ├── gpt-4o
+                 │                    ├── gpt-4o-mini
+                 │                    └── embeddings
+                 │
+                 └──►  Foundry Hub (westus3)  [failover]
+```
+
+See the [Azure OpenAI Gateway reference architecture](https://learn.microsoft.com/en-us/azure/architecture/ai-ml/guide/azure-openai-gateway-multi-backend) for implementation details.
 
 ---
 

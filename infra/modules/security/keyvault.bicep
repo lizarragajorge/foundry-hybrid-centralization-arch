@@ -18,8 +18,9 @@ param keyVaultName string
 @description('Tenant ID for Key Vault access policies')
 param tenantId string
 
-@description('Principal IDs to grant Key Vault access (Foundry managed identities)')
-param accessPrincipalIds string[] = []
+@description('Public network access setting (should match hub posture)')
+@allowed(['Enabled', 'Disabled'])
+param publicNetworkAccess string = 'Enabled'
 
 @description('Enable purge protection on Key Vault')
 param enablePurgeProtection bool = true
@@ -53,30 +54,13 @@ resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
     softDeleteRetentionInDays: softDeleteRetentionDays
     enablePurgeProtection: enablePurgeProtection
     enableRbacAuthorization: true
-    publicNetworkAccess: 'Enabled'
+    publicNetworkAccess: publicNetworkAccess
     networkAcls: {
-      defaultAction: 'Allow'
+      defaultAction: publicNetworkAccess == 'Disabled' ? 'Deny' : 'Allow'
       bypass: 'AzureServices'
     }
   }
 }
-
-// RBAC: Key Vault Secrets User for Foundry managed identities
-resource kvSecretUserAssignments 'Microsoft.Authorization/roleAssignments@2022-04-01' = [
-  for (principalId, i) in accessPrincipalIds: {
-    name: guid(keyVault.id, principalId, '4633458b-17de-408a-b874-0445c86b69e6')
-    scope: keyVault
-    properties: {
-      principalId: principalId
-      // Key Vault Secrets User
-      roleDefinitionId: subscriptionResourceId(
-        'Microsoft.Authorization/roleDefinitions',
-        '4633458b-17de-408a-b874-0445c86b69e6'
-      )
-      principalType: 'ServicePrincipal'
-    }
-  }
-]
 
 // Key Vault diagnostics
 resource kvDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (!empty(logAnalyticsWorkspaceId)) {

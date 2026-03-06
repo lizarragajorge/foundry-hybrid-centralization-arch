@@ -18,6 +18,7 @@ import GuardrailsDemo from "@/components/guardrails/GuardrailsDemo";
 import BUFilterBar from "@/components/ui/BUFilterBar";
 import { BUProvider } from "@/lib/bu-context";
 import { SectionHeader } from "@/components/ui/shared";
+import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 
 const tabs = [
   { id: "architecture", label: "Architecture", icon: <Layers size={16} /> },
@@ -181,15 +182,15 @@ export default function Home() {
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.2 }}
           >
-            {activeTab === "architecture" && <ArchitectureDiagram />}
-            {activeTab === "simulation" && <SimulationPanel />}
-            {activeTab === "arena" && <ModelArena />}
-            {activeTab === "trace" && <RequestTraceViewer />}
-            {activeTab === "loadtest" && <MultiLoadTest />}
-            {activeTab === "telemetry" && <TelemetryDashboard />}
-            {activeTab === "cost" && <CostCalculator />}
-            {activeTab === "guardrails" && <GuardrailsDemo />}
-            {activeTab === "governance" && <GovernanceShowcase />}
+            {activeTab === "architecture" && <ErrorBoundary fallbackTitle="Architecture panel error"><ArchitectureDiagram /></ErrorBoundary>}
+            {activeTab === "simulation" && <ErrorBoundary fallbackTitle="Simulation panel error"><SimulationPanel /></ErrorBoundary>}
+            {activeTab === "arena" && <ErrorBoundary fallbackTitle="Arena panel error"><ModelArena /></ErrorBoundary>}
+            {activeTab === "trace" && <ErrorBoundary fallbackTitle="Trace panel error"><RequestTraceViewer /></ErrorBoundary>}
+            {activeTab === "loadtest" && <ErrorBoundary fallbackTitle="Load Test panel error"><MultiLoadTest /></ErrorBoundary>}
+            {activeTab === "telemetry" && <ErrorBoundary fallbackTitle="Telemetry panel error"><TelemetryDashboard /></ErrorBoundary>}
+            {activeTab === "cost" && <ErrorBoundary fallbackTitle="Cost panel error"><CostCalculator /></ErrorBoundary>}
+            {activeTab === "guardrails" && <ErrorBoundary fallbackTitle="Guardrails panel error"><GuardrailsDemo /></ErrorBoundary>}
+            {activeTab === "governance" && <ErrorBoundary fallbackTitle="Governance panel error"><GovernanceShowcase /></ErrorBoundary>}
           </motion.div>
         </AnimatePresence>
       </main>

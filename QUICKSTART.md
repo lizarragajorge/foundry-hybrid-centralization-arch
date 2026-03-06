@@ -116,6 +116,7 @@ AZURE_SUBSCRIPTION_ID=<your-subscription-id>
 AZURE_MONITORING_RG=<your-monitoring-rg>
 AZURE_LOG_ANALYTICS_WORKSPACE=<your-law-name>
 APPLICATIONINSIGHTS_CONNECTION_STRING=<from App Insights resource>
+APPINSIGHTS_APP_ID=<from App Insights > API Access > Application ID>
 NEXT_PUBLIC_APP_NAME=Azure Foundry Hybrid
 EOF
 

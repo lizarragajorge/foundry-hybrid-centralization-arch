@@ -1,22 +1,41 @@
 import { NextRequest, NextResponse } from "next/server";
-import { AzureCliCredential } from "@azure/identity";
+import { DefaultAzureCredential } from "@azure/identity";
 import { trace as otelTrace, SpanStatusCode } from "@opentelemetry/api";
+import { z } from "zod";
 
 const endpoint = process.env.AZURE_FOUNDRY_ENDPOINT || "";
 const tracer = otelTrace.getTracer("guardrails-api");
 
+const GuardrailsRequestSchema = z.object({
+  messages: z.array(z.object({
+    role: z.enum(["system", "user", "assistant"]),
+    content: z.string(),
+  })).min(1, "At least one message is required"),
+  deployment: z.string().min(1).default("gpt-4o-mini"),
+  maxTokens: z.number().int().min(1).max(4096).default(100),
+});
+
 export async function POST(req: NextRequest) {
   return tracer.startActiveSpan("guardrails.check", async (span) => {
   try {
-    const body = await req.json();
-    const { messages, deployment = "gpt-4o-mini", maxTokens = 100 } = body;
+    const rawBody = await req.json();
+    const parseResult = GuardrailsRequestSchema.safeParse(rawBody);
+    if (!parseResult.success) {
+      span.setStatus({ code: SpanStatusCode.ERROR, message: "Validation failed" });
+      span.end();
+      return NextResponse.json(
+        { error: "Invalid request body", details: parseResult.error.flatten(), blocked: false },
+        { status: 400 }
+      );
+    }
+    const { messages, deployment, maxTokens } = parseResult.data;
 
     span.setAttribute("guardrails.deployment", deployment);
     span.setAttribute("guardrails.policy", "Microsoft.DefaultV2");
 
     let token: string;
     try {
-      const credential = new AzureCliCredential();
+      const credential = new DefaultAzureCredential();
       const tokenResponse = await credential.getToken(
         "https://cognitiveservices.azure.com/.default"
       );

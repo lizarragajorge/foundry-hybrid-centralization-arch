@@ -1,24 +1,47 @@
 import { NextRequest, NextResponse } from "next/server";
-import { AzureCliCredential } from "@azure/identity";
+import { DefaultAzureCredential } from "@azure/identity";
 import { trace, SpanStatusCode } from "@opentelemetry/api";
+import { z } from "zod";
 
 const endpoint = process.env.AZURE_FOUNDRY_ENDPOINT || "";
 const tracer = trace.getTracer("foundry-api");
 
+const FoundryRequestSchema = z.object({
+  deployment: z.string().min(1, "deployment is required"),
+  messages: z.array(z.object({
+    role: z.enum(["system", "user", "assistant"]),
+    content: z.string(),
+  })).optional(),
+  input: z.union([z.string(), z.array(z.string())]).optional(),
+  maxTokens: z.number().int().min(1).max(4096).default(200),
+}).refine(
+  (data) => data.messages || data.input,
+  { message: "Either messages (for chat) or input (for embeddings) is required" }
+);
+
 export async function POST(req: NextRequest) {
   return tracer.startActiveSpan("foundry.inference", async (span) => {
   try {
-    const body = await req.json();
-    const { deployment, messages, input, maxTokens = 200 } = body;
+    const rawBody = await req.json();
+    const parseResult = FoundryRequestSchema.safeParse(rawBody);
+    if (!parseResult.success) {
+      span.setStatus({ code: SpanStatusCode.ERROR, message: "Validation failed" });
+      span.end();
+      return NextResponse.json(
+        { error: "Invalid request body", details: parseResult.error.flatten() },
+        { status: 400 }
+      );
+    }
+    const { deployment, messages, input, maxTokens } = parseResult.data;
 
     span.setAttribute("foundry.deployment", deployment);
     span.setAttribute("foundry.max_tokens", maxTokens);
     span.setAttribute("foundry.is_embedding", deployment.includes("embedding"));
 
-    // Create credential per-request to avoid stale token issues in dev
+    // DefaultAzureCredential tries ManagedIdentity → AzureCLI → env vars automatically
     let token: string;
     try {
-      const credential = new AzureCliCredential();
+      const credential = new DefaultAzureCredential();
       const tokenResponse = await credential.getToken(
         "https://cognitiveservices.azure.com/.default"
       );

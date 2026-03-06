@@ -1,13 +1,18 @@
 // ============================================================================
 // Governance - Azure Policy Assignments
-// Enforces centralized governance over federated BU spokes:
+// Enforces centralized governance across the ENTIRE subscription:
 //   - Restrict allowed model families
 //   - Enforce Entra ID authentication (disable local auth)
 //   - Enforce tagging standards
 //   - Restrict public network access
+//
+// Deployed at subscription scope so policies apply to ALL resource groups,
+// not just the hub RG.
 // ============================================================================
 
-@description('Target scope resource group or subscription for policy assignment')
+targetScope = 'subscription'
+
+@description('Target scope location for policy assignment')
 param location string
 
 @description('Whether to enforce policies or just audit')

@@ -15,7 +15,7 @@ param globalTags = {
 // ─── Centralized AI CoE Hub ─────────────────────────────────────────────────
 
 param aiCoeFoundryName = 'contoso-foundry-hub-dev'
-param disableLocalAuth = false
+param disableLocalAuth = true
 param hubPublicNetworkAccess = 'Enabled'
 
 // Model deployments managed centrally by AI CoE
@@ -93,3 +93,7 @@ param alertEmails = [
   // 'ai-coe-admins@contoso.com'
 ]
 param logRetentionDays = 90
+
+// ─── Private Endpoints ──────────────────────────────────────────────────────
+
+param enablePrivateEndpoints = false // Set to true + hubPublicNetworkAccess = 'Disabled' for production

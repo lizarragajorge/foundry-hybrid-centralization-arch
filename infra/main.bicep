@@ -48,7 +48,7 @@ param globalTags object = {}
 param aiCoeFoundryName string
 
 @description('Whether to disable local (API key) auth on the hub')
-param disableLocalAuth bool = false
+param disableLocalAuth bool = true
 
 @description('Public network access setting for the hub')
 @allowed(['Enabled', 'Disabled'])
@@ -98,6 +98,11 @@ param alertEmails string[] = []
 
 @description('Log Analytics retention in days')
 param logRetentionDays int = 90
+
+// ─── Private Endpoint Parameters ────────────────────────────────────────────
+
+@description('Enable Private Endpoints for Foundry and Key Vault (requires hubPublicNetworkAccess = Disabled)')
+param enablePrivateEndpoints bool = false
 
 // ─── Computed Values ────────────────────────────────────────────────────────
 
@@ -188,6 +193,7 @@ module security 'modules/security/keyvault.bicep' = {
     tags: tags
     keyVaultName: 'kv-${orgPrefix}-foundry-${environment}'
     tenantId: tenant().tenantId
+    publicNetworkAccess: hubPublicNetworkAccess
     logAnalyticsWorkspaceId: monitoring.outputs.logAnalyticsWorkspaceId
   }
 }
@@ -273,13 +279,29 @@ module spokeMiRbac 'modules/governance/rbac-mi.bicep' = [
   }
 ]
 
-// ─── 8. Governance Policies ─────────────────────────────────────────────────
+// ─── 8. Governance Policies (Subscription-wide) ─────────────────────────────
 
+// Policies deploy at subscription scope to govern ALL resource groups,
+// including hub, spoke, monitoring, and networking.
 module policies 'modules/governance/policy.bicep' = {
-  scope: hubResourceGroup
+  name: 'policyAssignments'
   params: {
     location: location
     enforcementMode: policyEnforcementMode
+  }
+}
+
+// ─── 9. Metric Alert Rules ──────────────────────────────────────────────────
+
+// Alerts deploy after Foundry hub exists (scoped to its resource ID).
+// Only created when alertEmails are configured (action group must exist).
+module alerts 'modules/monitoring/alerts.bicep' = if (!empty(alertEmails)) {
+  scope: monitoringResourceGroup
+  params: {
+    namePrefix: '${orgPrefix}-foundry'
+    tags: tags
+    foundryResourceId: foundryHub.outputs.foundryResourceId
+    actionGroupId: monitoring.outputs.actionGroupId
   }
 }
 
@@ -304,6 +326,26 @@ module kvAccessSpoke 'modules/security/keyvault-access.bicep' = [
     }
   }
 ]
+
+// ─── 10. Private Endpoints (Optional) ───────────────────────────────────────
+
+// Deploy PEs for Foundry + Key Vault when enabled (production hardening).
+// Requires hubPublicNetworkAccess = 'Disabled' for full network isolation.
+module privateEndpoints 'modules/networking/private-endpoint.bicep' = if (enablePrivateEndpoints) {
+  scope: networkingResourceGroup
+  params: {
+    location: location
+    tags: tags
+    namePrefix: '${orgPrefix}-foundry-${environment}'
+    foundryResourceId: foundryHub.outputs.foundryResourceId
+    keyVaultId: security.outputs.keyVaultId
+    privateEndpointSubnetId: networking.outputs.hubPeSubnetId
+    vnetIdsForDnsLink: concat(
+      [networking.outputs.hubVnetId],
+      networking.outputs.spokeVnetIds
+    )
+  }
+}
 
 // ─── Outputs ────────────────────────────────────────────────────────────────
 

@@ -63,6 +63,43 @@ resource nsgPrivateEndpoints 'Microsoft.Network/networkSecurityGroups@2024-01-01
   }
 }
 
+// NSG for Spoke Application Subnets
+resource nsgSpokeApp 'Microsoft.Network/networkSecurityGroups@2024-01-01' = {
+  name: 'nsg-foundry-spoke-app'
+  location: location
+  tags: tags
+  properties: {
+    securityRules: [
+      {
+        name: 'AllowVnetInbound'
+        properties: {
+          priority: 100
+          direction: 'Inbound'
+          access: 'Allow'
+          protocol: '*'
+          sourceAddressPrefix: 'VirtualNetwork'
+          sourcePortRange: '*'
+          destinationAddressPrefix: 'VirtualNetwork'
+          destinationPortRange: '*'
+        }
+      }
+      {
+        name: 'DenyAllInbound'
+        properties: {
+          priority: 4096
+          direction: 'Inbound'
+          access: 'Deny'
+          protocol: '*'
+          sourceAddressPrefix: '*'
+          sourcePortRange: '*'
+          destinationAddressPrefix: '*'
+          destinationPortRange: '*'
+        }
+      }
+    ]
+  }
+}
+
 // Hub VNet (AI CoE)
 resource hubVnet 'Microsoft.Network/virtualNetworks@2024-01-01' = {
   name: 'vnet-foundry-hub'
@@ -114,12 +151,18 @@ resource spokeVnetResources 'Microsoft.Network/virtualNetworks@2024-01-01' = [
           name: 'snet-app'
           properties: {
             addressPrefix: spoke.appSubnetPrefix
+            networkSecurityGroup: {
+              id: nsgSpokeApp.id
+            }
           }
         }
         {
           name: 'snet-private-endpoints'
           properties: {
             addressPrefix: spoke.peSubnetPrefix
+            networkSecurityGroup: {
+              id: nsgPrivateEndpoints.id
+            }
             privateEndpointNetworkPolicies: 'Disabled'
           }
         }
