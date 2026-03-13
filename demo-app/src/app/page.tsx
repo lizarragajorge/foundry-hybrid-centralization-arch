@@ -4,7 +4,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Layers, Play, BarChart3, Shield, ShieldAlert,
-  ExternalLink, Brain, Swords, DollarSign, Eye, Gauge
+  ExternalLink, Brain, Swords, DollarSign, Eye, Gauge, BookOpen, Bot
 } from "lucide-react";
 import ArchitectureDiagram from "@/components/architecture/ArchitectureDiagram";
 import SimulationPanel from "@/components/simulation/SimulationPanel";
@@ -15,6 +15,8 @@ import CostCalculator from "@/components/cost/CostCalculator";
 import RequestTraceViewer from "@/components/trace/RequestTraceViewer";
 import MultiLoadTest from "@/components/loadtest/MultiLoadTest";
 import GuardrailsDemo from "@/components/guardrails/GuardrailsDemo";
+import ModelCatalog from "@/components/catalog/ModelCatalog";
+import AgentGatewayDemo from "@/components/agent/AgentGatewayDemo";
 import BUFilterBar from "@/components/ui/BUFilterBar";
 import { BUProvider } from "@/lib/bu-context";
 import { SectionHeader } from "@/components/ui/shared";
@@ -22,6 +24,8 @@ import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 
 const tabs = [
   { id: "architecture", label: "Architecture", icon: <Layers size={16} /> },
+  { id: "catalog", label: "Model Catalog", icon: <BookOpen size={16} /> },
+  { id: "agent", label: "Agent Gateway", icon: <Bot size={16} /> },
   { id: "simulation", label: "Simulation", icon: <Play size={16} /> },
   { id: "arena", label: "Arena", icon: <Swords size={16} /> },
   { id: "trace", label: "Trace", icon: <Eye size={16} /> },
@@ -39,6 +43,16 @@ const tabMeta: Record<TabId, { title: string; subtitle: string; badge: string }>
     title: "Hybrid Architecture",
     subtitle: "Interactive visualization of the centralized AI CoE hub with federated BU spoke projects",
     badge: "LIVE DEPLOYMENT",
+  },
+  catalog: {
+    title: "Model Catalog",
+    subtitle: "Central IT provisions models on the platform — BU developers deploy only what they're approved for",
+    badge: "GOVERNANCE",
+  },
+  agent: {
+    title: "Agent Gateway",
+    subtitle: "External agents call centralized models through the APIM AI Gateway — per-BU policy enforcement, zero Azure credentials",
+    badge: "AGENT + GATEWAY",
   },
   simulation: {
     title: "BU Simulations",
@@ -183,6 +197,8 @@ export default function Home() {
             transition={{ duration: 0.2 }}
           >
             {activeTab === "architecture" && <ErrorBoundary fallbackTitle="Architecture panel error"><ArchitectureDiagram /></ErrorBoundary>}
+            {activeTab === "catalog" && <ErrorBoundary fallbackTitle="Model Catalog panel error"><ModelCatalog /></ErrorBoundary>}
+            {activeTab === "agent" && <ErrorBoundary fallbackTitle="Agent Gateway panel error"><AgentGatewayDemo /></ErrorBoundary>}
             {activeTab === "simulation" && <ErrorBoundary fallbackTitle="Simulation panel error"><SimulationPanel /></ErrorBoundary>}
             {activeTab === "arena" && <ErrorBoundary fallbackTitle="Arena panel error"><ModelArena /></ErrorBoundary>}
             {activeTab === "trace" && <ErrorBoundary fallbackTitle="Trace panel error"><RequestTraceViewer /></ErrorBoundary>}

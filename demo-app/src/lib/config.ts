@@ -7,6 +7,8 @@ export const config = {
     subscriptionId: process.env.AZURE_SUBSCRIPTION_ID || "",
     logAnalyticsWorkspace: process.env.AZURE_LOG_ANALYTICS_WORKSPACE || "",
     monitoringRg: process.env.AZURE_MONITORING_RG || "",
+    // AI Gateway (APIM) — when set, catalog-test routes through APIM instead of direct Foundry
+    apimGatewayUrl: process.env.AZURE_APIM_GATEWAY_URL || "",
   },
 };
 
@@ -23,11 +25,12 @@ export const architectureData = {
     { name: "gpt-4o", version: "2024-08-06", sku: "Standard", tpm: 30, format: "OpenAI" },
     { name: "gpt-4o-mini", version: "2024-07-18", sku: "Standard", tpm: 60, format: "OpenAI" },
     { name: "text-embedding-3-large", version: "1", sku: "Standard", tpm: 120, format: "OpenAI" },
+    { name: "external-model-sim", version: "sim", sku: "External", tpm: 0, format: "External (via APIM)" },
   ],
   projects: [
-    { name: "contoso-finance-dev", displayName: "Finance & Risk", bu: "finance", color: "#10b981" },
-    { name: "contoso-marketing-dev", displayName: "Marketing & Sales", bu: "marketing", color: "#3b82f6" },
-    { name: "contoso-engineering-dev", displayName: "Engineering & Product", bu: "engineering", color: "#f59e0b" },
+    { name: "contoso-finance-dev", displayName: "Finance & Risk", bu: "finance", color: "#10b981", allowedModels: ["gpt-4o", "gpt-4o-mini"] },
+    { name: "contoso-marketing-dev", displayName: "Marketing & Sales", bu: "marketing", color: "#3b82f6", allowedModels: ["gpt-4o-mini", "text-embedding-3-large"] },
+    { name: "contoso-engineering-dev", displayName: "Engineering & Product", bu: "engineering", color: "#f59e0b", allowedModels: ["gpt-4o", "gpt-4o-mini", "text-embedding-3-large", "external-model-sim"] },
   ],
   vnets: [
     { name: "vnet-foundry-hub", prefix: "10.0.0.0/16", role: "hub" },

@@ -102,6 +102,176 @@ Find group IDs: `az ad group list --query "[].{name:displayName, id:id}" -o tabl
 
 ---
 
+## Onboarding an External Agent to the AI Gateway
+
+This section explains how a BU developer connects their agent (app, bot, pipeline, Copilot extension, etc.) to the centralized model gateway. The agent authenticates with a managed identity — **no API keys or secrets are exchanged**.
+
+### Architecture
+
+```
+┌─────────────────────────┐          ┌──────────────────────┐          ┌──────────────────────┐
+│  External Agent         │          │  APIM AI Gateway     │          │  Foundry Hub         │
+│  (App Service, VM,      │  Bearer  │                      │  MI auth │                      │
+│   Container App, AKS,   │──token──►│  1. validate JWT     │─────────►│  gpt-4o              │
+│   Azure Function, etc.) │          │  2. oid → BU lookup  │          │  gpt-4o-mini         │
+│                         │          │  3. allowedModels    │          │  embeddings          │
+│  Auth: Managed Identity │          │  4. rate limit       │          │                      │
+│  (DefaultAzureCredential)          │  5. retry on 429/5xx │          │                      │
+└─────────────────────────┘          └──────────────────────┘          └──────────────────────┘
+```
+
+### Prerequisites
+
+| Requirement | Detail |
+|---|---|
+| AI Gateway deployed | `enableAiGateway = true` in `main.bicepparam` |
+| Agent has a managed identity | System-assigned or User-assigned MI on the compute resource |
+| Agent's MI principal ID | `az identity show --name <mi-name> -g <rg> --query principalId -o tsv` |
+
+### Step 1: Platform Team — Register the Agent's Identity
+
+Add the agent's managed identity principal ID to the BU's `callerPrincipalIds` in the APIM policy. This is done by the platform/AI CoE team, not the agent developer.
+
+**Option A: If the agent runs on the BU's Foundry Project MI** (already registered)
+
+The project managed identities are automatically wired into the APIM policy during deployment. No action needed — the agent just needs to use `DefaultAzureCredential` on compute that has the project MI attached.
+
+**Option B: If the agent has its own managed identity** (new identity)
+
+The platform team needs to:
+
+1. Get the agent's MI principal ID:
+   ```bash
+   # System-assigned MI on an App Service
+   az webapp identity show --name <app-name> -g <rg> --query principalId -o tsv
+
+   # User-assigned MI
+   az identity show --name <mi-name> -g <rg> --query principalId -o tsv
+   ```
+
+2. Add the principal ID to the BU's entry in the APIM gateway module. In `infra/main.bicep`, the `callerPrincipalIds` array is built from the project MI plus any additional IDs. To add external agent IDs, extend the `businessUnitConfig` type to include extra caller IDs, or add them directly in the gateway module invocation:
+
+   ```bicep
+   // In main.bicep → aiGateway module → businessUnits parameter
+   callerPrincipalIds: [
+     spokeProjects[i].outputs.projectPrincipalId   // project MI (automatic)
+     // Add external agent MIs here:
+     // 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'      // finance-compliance-agent MI
+   ]
+   ```
+
+3. Redeploy:
+   ```bash
+   ./scripts/deploy.ps1
+   ```
+
+   The APIM policy will now recognize the new identity and map it to the BU's `allowedModels` list.
+
+### Step 2: Agent Developer — Write the Agent Code
+
+The agent developer receives:
+- **Gateway URL**: `https://<org>-foundry-apim-<env>.azure-api.net`
+- **Their BU's allowed models**: e.g., `gpt-4o`, `gpt-4o-mini`
+
+They do **not** receive any API keys, Foundry endpoints, or Azure credentials.
+
+**Python:**
+```python
+from azure.identity import DefaultAzureCredential
+import openai
+
+credential = DefaultAzureCredential()
+token = credential.get_token("https://cognitiveservices.azure.com/.default")
+
+client = openai.AzureOpenAI(
+    azure_endpoint="https://contoso-foundry-apim-dev.azure-api.net",
+    azure_ad_token=token.token,
+    api_version="2024-08-01-preview",
+)
+
+response = client.chat.completions.create(
+    model="gpt-4o-mini",   # must be in this BU's allowedModels
+    messages=[{"role": "user", "content": "Summarize this document..."}],
+    max_tokens=200,
+)
+```
+
+**JavaScript/TypeScript:**
+```typescript
+import { DefaultAzureCredential } from "@azure/identity";
+
+const credential = new DefaultAzureCredential();
+const { token } = await credential.getToken("https://cognitiveservices.azure.com/.default");
+
+const response = await fetch(
+  "https://contoso-foundry-apim-dev.azure-api.net/openai/deployments/gpt-4o-mini/chat/completions?api-version=2024-08-01-preview",
+  {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      messages: [{ role: "user", content: "Summarize this document..." }],
+      max_tokens: 200,
+    }),
+  }
+);
+```
+
+**C#:**
+```csharp
+using Azure.Identity;
+using Azure.AI.OpenAI;
+
+var client = new AzureOpenAIClient(
+    new Uri("https://contoso-foundry-apim-dev.azure-api.net"),
+    new DefaultAzureCredential()
+);
+
+var chatClient = client.GetChatClient("gpt-4o-mini");
+var response = await chatClient.CompleteChatAsync(
+    new ChatMessage[] {
+        new UserChatMessage("Summarize this document...")
+    },
+    new ChatCompletionOptions { MaxOutputTokenCount = 200 }
+);
+```
+
+### Step 3: What Happens at Runtime
+
+| Step | Who | What |
+|---|---|---|
+| 1 | Agent | `DefaultAzureCredential` acquires an Entra token with audience `cognitiveservices.azure.com` |
+| 2 | Agent | Sends `POST` to APIM gateway with `Authorization: Bearer <token>` |
+| 3 | APIM | `validate-azure-ad-token` validates the JWT against Azure AD |
+| 4 | APIM | Extracts `oid` claim → looks up in BU identity mapping |
+| 5 | APIM | Checks if the requested model is in the BU's `allowedModels` |
+| 6 | APIM | If blocked → returns `403 PolicyViolation` immediately |
+| 7 | APIM | If allowed → acquires its own Entra token using APIM's MI |
+| 8 | APIM | Forwards request to Foundry hub with APIM's Bearer token |
+| 9 | Foundry | Processes the request, returns the model response |
+| 10 | APIM | Adds `x-ai-gateway-bu` and `x-ai-gateway-caller` headers, returns response to agent |
+
+### What the Agent Developer Does NOT Need
+
+| They don't need... | Because... |
+|---|---|
+| Azure API keys | Auth is managed identity only |
+| Foundry endpoint URL | APIM is the only endpoint they call |
+| Azure subscription access | APIM is publicly reachable (or via PE) |
+| RBAC on the Foundry resource | APIM's MI has the RBAC, not the agent |
+| Knowledge of other BUs' models | allowedModels policy restricts visibility |
+| Credential rotation | Managed identities auto-rotate |
+
+### Troubleshooting
+
+| Issue | Cause | Fix |
+|---|---|---|
+| `401 Azure AD JWT not present` | No Bearer token in request | Use `DefaultAzureCredential` with scope `https://cognitiveservices.azure.com/.default` |
+| `401 TokenExpired` | Token has expired | `DefaultAzureCredential` handles refresh automatically — ensure you're not caching stale tokens |
+| `403 PolicyViolation: Model not approved` | Model not in BU's `allowedModels` | Request access from AI CoE (add to `allowedModels` array in IaC) |
+| `200 OK` but `x-ai-gateway-bu: unknown` | Agent's MI oid not in any BU mapping | Add the MI's principal ID to `callerPrincipalIds` and redeploy |
+
+---
+
 ## Moving to Production
 
 ### Parameter Changes

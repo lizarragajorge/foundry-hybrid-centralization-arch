@@ -74,6 +74,8 @@ type businessUnitConfig = {
   appSubnetPrefix: string
   @description('Private endpoint subnet prefix')
   peSubnetPrefix: string
+  @description('Model deployment names this BU is allowed to consume (empty = all models). Central IT provisions models on the hub; this controls which BUs can deploy/use them.')
+  allowedModels: string[]
 }
 
 // ─── Governance Parameters ──────────────────────────────────────────────────
@@ -103,6 +105,21 @@ param logRetentionDays int = 90
 
 @description('Enable Private Endpoints for Foundry and Key Vault (requires hubPublicNetworkAccess = Disabled)')
 param enablePrivateEndpoints bool = false
+
+// ─── AI Gateway Parameters ──────────────────────────────────────────────────
+
+@description('Enable APIM AI Gateway for centralized model access enforcement')
+param enableAiGateway bool = false
+
+@description('Publisher email for APIM (required when enableAiGateway = true)')
+param apimPublisherEmail string = ''
+
+@description('APIM SKU')
+@allowed(['Developer', 'Basic', 'Standard', 'Premium', 'Consumption', 'BasicV2', 'StandardV2', 'PremiumV2'])
+param apimSku string = 'BasicV2'
+
+@description('Per-BU tokens-per-minute rate limit (0 = unlimited)')
+param defaultBuRateLimitTPM int = 0
 
 // ─── Computed Values ────────────────────────────────────────────────────────
 
@@ -172,6 +189,7 @@ module networking 'modules/networking/vnet.bicep' = {
   params: {
     location: location
     tags: tags
+    enableApimSubnet: enableAiGateway
     spokeVnets: [
       for bu in businessUnits: {
         name: 'vnet-foundry-${bu.name}'
@@ -347,6 +365,48 @@ module privateEndpoints 'modules/networking/private-endpoint.bicep' = if (enable
   }
 }
 
+// ─── 11. AI Gateway (APIM) ──────────────────────────────────────────────────
+
+// Deploys APIM as the AI Gateway with per-BU identity-mapped products.
+// BU callers authenticate with their managed identity (Entra ID Bearer token).
+// APIM validates the JWT, maps the caller's oid to a BU, enforces allowedModels,
+// then authenticates to Foundry using APIM's own managed identity. No API keys.
+module aiGateway 'modules/gateway/apim.bicep' = if (enableAiGateway) {
+  scope: hubResourceGroup
+  params: {
+    location: location
+    tags: tags
+    apimName: '${orgPrefix}-foundry-gateway-${environment}'
+    skuName: apimSku
+    publisherEmail: apimPublisherEmail
+    publisherName: '${orgPrefix} AI CoE'
+    foundryEndpoint: foundryHub.outputs.foundryEndpoint
+    tenantId: tenant().tenantId
+    businessUnits: [
+      for (bu, i) in businessUnits: {
+        name: bu.name
+        displayName: bu.displayName
+        allowedModels: bu.allowedModels
+        rateLimitTPM: defaultBuRateLimitTPM
+        callerPrincipalIds: [spokeProjects[i].outputs.projectPrincipalId]
+      }
+    ]
+    appInsightsInstrumentationKey: monitoring.outputs.appInsightsInstrumentationKey
+    logAnalyticsWorkspaceId: monitoring.outputs.logAnalyticsWorkspaceId
+  }
+}
+
+// Grant APIM managed identity → Cognitive Services User on the Foundry hub
+module apimMiRbac 'modules/governance/rbac-mi.bicep' = if (enableAiGateway) {
+  name: 'apimMiRbac'
+  scope: hubResourceGroup
+  params: {
+    foundryResourceId: foundryHub.outputs.foundryResourceId
+    principalId: enableAiGateway ? aiGateway.outputs.apimPrincipalId : ''
+    roleDescription: 'APIM AI Gateway managed identity - Cognitive Services User'
+  }
+}
+
 // ─── Outputs ────────────────────────────────────────────────────────────────
 
 @description('Centralized Foundry resource ID')
@@ -368,3 +428,6 @@ output keyVaultUri string = security.outputs.keyVaultUri
 
 @description('Hub VNet ID')
 output hubVnetId string = networking.outputs.hubVnetId
+
+@description('AI Gateway URL (empty if not enabled)')
+output aiGatewayUrl string = enableAiGateway ? aiGateway.outputs.apimGatewayUrl : ''

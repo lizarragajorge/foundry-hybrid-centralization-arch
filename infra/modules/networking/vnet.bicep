@@ -22,6 +22,12 @@ param hubFoundrySubnetPrefix string = '10.0.1.0/24'
 @description('Hub Private Endpoint subnet address prefix')
 param hubPrivateEndpointSubnetPrefix string = '10.0.2.0/24'
 
+@description('Hub APIM subnet address prefix (for AI Gateway)')
+param hubApimSubnetPrefix string = '10.0.3.0/24'
+
+@description('Whether to deploy the APIM subnet')
+param enableApimSubnet bool = false
+
 @description('Spoke VNet configurations')
 param spokeVnets spokeVnetConfig[] = []
 
@@ -109,27 +115,40 @@ resource hubVnet 'Microsoft.Network/virtualNetworks@2024-01-01' = {
     addressSpace: {
       addressPrefixes: [hubVnetAddressPrefix]
     }
-    subnets: [
-      {
-        name: 'snet-foundry'
-        properties: {
-          addressPrefix: hubFoundrySubnetPrefix
-          networkSecurityGroup: {
-            id: nsgPrivateEndpoints.id
+    subnets: concat(
+      [
+        {
+          name: 'snet-foundry'
+          properties: {
+            addressPrefix: hubFoundrySubnetPrefix
+            networkSecurityGroup: {
+              id: nsgPrivateEndpoints.id
+            }
           }
         }
-      }
-      {
-        name: 'snet-private-endpoints'
-        properties: {
-          addressPrefix: hubPrivateEndpointSubnetPrefix
-          networkSecurityGroup: {
-            id: nsgPrivateEndpoints.id
+        {
+          name: 'snet-private-endpoints'
+          properties: {
+            addressPrefix: hubPrivateEndpointSubnetPrefix
+            networkSecurityGroup: {
+              id: nsgPrivateEndpoints.id
+            }
+            privateEndpointNetworkPolicies: 'Disabled'
           }
-          privateEndpointNetworkPolicies: 'Disabled'
         }
-      }
-    ]
+      ],
+      enableApimSubnet ? [
+        {
+          name: 'snet-apim'
+          properties: {
+            addressPrefix: hubApimSubnetPrefix
+            networkSecurityGroup: {
+              id: nsgPrivateEndpoints.id
+            }
+          }
+        }
+      ] : []
+    )
   }
 }
 

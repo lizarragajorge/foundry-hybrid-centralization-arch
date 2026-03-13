@@ -55,6 +55,10 @@ param businessUnits = [
     vnetAddressPrefix: '10.1.0.0/16'
     appSubnetPrefix: '10.1.1.0/24'
     peSubnetPrefix: '10.1.2.0/24'
+    allowedModels: [
+      'gpt-4o'       // Approved for compliance reasoning
+      'gpt-4o-mini'  // Approved for summarization
+    ]
   }
   {
     name: 'marketing'
@@ -62,6 +66,10 @@ param businessUnits = [
     vnetAddressPrefix: '10.2.0.0/16'
     appSubnetPrefix: '10.2.1.0/24'
     peSubnetPrefix: '10.2.2.0/24'
+    allowedModels: [
+      'gpt-4o-mini'              // Cost-efficient content gen
+      'text-embedding-3-large'   // Semantic search
+    ]
   }
   {
     name: 'engineering'
@@ -69,6 +77,12 @@ param businessUnits = [
     vnetAddressPrefix: '10.3.0.0/16'
     appSubnetPrefix: '10.3.1.0/24'
     peSubnetPrefix: '10.3.2.0/24'
+    allowedModels: [
+      'gpt-4o'                   // Code review
+      'gpt-4o-mini'              // Automation
+      'text-embedding-3-large'   // RAG pipelines
+      'external-model-sim'       // Simulated external model (routes to gpt-4o-mini via APIM rewrite)
+    ]
   }
 ]
 
@@ -97,3 +111,10 @@ param logRetentionDays = 90
 // ─── Private Endpoints ──────────────────────────────────────────────────────
 
 param enablePrivateEndpoints = false // Set to true + hubPublicNetworkAccess = 'Disabled' for production
+
+// ─── AI Gateway (APIM) ──────────────────────────────────────────────────────
+
+param enableAiGateway = true
+param apimPublisherEmail = 'jlizarraga@microsoft.com'
+param apimSku = 'BasicV2'
+param defaultBuRateLimitTPM = 0 // 0 = unlimited; set per-BU TPM quota (e.g., 10000)
