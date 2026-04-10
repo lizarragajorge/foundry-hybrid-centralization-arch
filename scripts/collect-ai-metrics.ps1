@@ -213,9 +213,10 @@ function Collect-SinglePass {
             Write-Host "  ├─ $($resource.name)" -ForegroundColor White
 
             # Resource-level tags
-            $buTag = $resource.tags.businessUnit ?? "unknown"
-            $envTag = $resource.tags.environment ?? "unknown"
-            $appTags = ($resource.tags | ConvertTo-Json -Compress) 2>$null ?? "{}"
+            $buTag = $(if ($resource.tags.businessUnit) { $resource.tags.businessUnit } else { 'unknown' })
+            $envTag = $(if ($resource.tags.environment) { $resource.tags.environment } else { 'unknown' })
+            try { $appTags = $resource.tags | ConvertTo-Json -Compress } catch { $appTags = '{}' }
+            if (-not $appTags) { $appTags = '{}' }
 
             # Collect aggregate metrics
             $metrics = Get-FoundryMetrics -ResourceId $resource.id -StartTime $StartTime -EndTime $EndTime
@@ -294,7 +295,7 @@ function Collect-SinglePass {
                     ModelVersion        = $dep.version
                     SKU                 = $dep.sku
                     TPMCapacity         = $dep.tpm
-                    RaiPolicyName       = ($dep.raiPolicy ?? "none")
+                    RaiPolicyName       = $(if ($dep.raiPolicy) { $dep.raiPolicy } else { 'none' })
                     TotalRequests       = $depCalls
                     PromptTokensIn      = $depPromptTokens
                     CompletionTokensOut = $depGenTokens

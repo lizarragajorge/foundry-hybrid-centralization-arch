@@ -25,8 +25,8 @@ $ErrorActionPreference = "Stop"
 # Management group scope = cascades to ALL subscriptions
 # Subscription scope = single subscription only
 $mgScope = "/providers/Microsoft.Management/managementGroups/$MgName"
-$subScope = if ($SubscriptionId) { "/subscriptions/$SubscriptionId" } else { $null }
-$scope = if ($MgName) { $mgScope } else { $subScope }
+$subScope = $(if ($SubscriptionId) { "/subscriptions/$SubscriptionId" } else { $null })
+$scope = $(if ($MgName) { $mgScope } else { $subScope })
 
 Write-Host "============================================" -ForegroundColor Cyan
 Write-Host "  Azure AI Foundry Policy Governance" -ForegroundColor Cyan

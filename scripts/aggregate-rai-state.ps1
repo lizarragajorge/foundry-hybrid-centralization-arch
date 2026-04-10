@@ -258,7 +258,8 @@ foreach ($sub in $subscriptions) {
             }
             else {
                 $subMissingGuardrail++
-                Write-Host "  │  ⚠ Deployment '$($dep.name)' ($($dep.model)) missing standard guardrail (has: $($dep.raiPolicy ?? 'none'))" -ForegroundColor DarkYellow
+                $currentPolicy = $(if ($dep.raiPolicy) { $dep.raiPolicy } else { 'none' })
+                Write-Host "  │  ⚠ Deployment '$($dep.name)' ($($dep.model)) missing standard guardrail (has: $currentPolicy)" -ForegroundColor DarkYellow
             }
         }
 
@@ -277,7 +278,7 @@ foreach ($sub in $subscriptions) {
                 HasEnterpriseStd   = $hasEnterprise
                 DeploymentCount    = $deployments.Count
                 DeploymentsGuarded = ($deployments | Where-Object { $_.raiPolicy -eq 'enterprise-standard' }).Count
-                BusinessUnit       = ($fr.tags.businessUnit ?? "unknown")
+                BusinessUnit       = $(if ($fr.tags.businessUnit) { $fr.tags.businessUnit } else { 'unknown' })
             }
             $null = $allRecords.Add($resourceRecord)
         }
@@ -292,13 +293,13 @@ foreach ($sub in $subscriptions) {
             ForEach-Object { $_.policyDefinitionId }
     }
 
-    $compliancePct = if ($subTotalDeployments -gt 0) {
+    $compliancePct = $(if ($subTotalDeployments -gt 0) {
         [math]::Round(($subWithGuardrail / $subTotalDeployments) * 100, 1)
-    } else { 100 }
+    } else { 100 })
 
-    $complianceState = if ($subMissingGuardrail -eq 0 -and $subHasEnterprise) { "Compliant" }
-        elseif ($subMissingGuardrail -gt 0) { "NonCompliant" }
-        else { "PartiallyCompliant" }
+    $complianceState = $(if ($subMissingGuardrail -eq 0 -and $subHasEnterprise) { 'Compliant' }
+        elseif ($subMissingGuardrail -gt 0) { 'NonCompliant' }
+        else { 'PartiallyCompliant' })
 
     Write-Host "  └─ Compliance: $complianceState ($compliancePct% deployments guarded)" -ForegroundColor $(
         if ($complianceState -eq 'Compliant') { 'Green' }

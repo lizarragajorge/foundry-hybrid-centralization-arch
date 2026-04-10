@@ -337,7 +337,7 @@ module guardrailsDine 'modules/governance/policy-dine-guardrails.bicep' = {
 // to reference the enterprise-standard guardrail from 8b.
 module assetGuardrailModify 'modules/governance/policy-modify-assets.bicep' = {
   name: 'assetGuardrailModifyPolicy'
-  dependsOn: [guardrailsDine]
+  // implicit dependency via guardrailsDine.outputs.standardRaiPolicyName
   params: {
     location: location
     enforcementMode: policyEnforcementMode

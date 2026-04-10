@@ -127,14 +127,6 @@ resource policyDefGuardrails 'Microsoft.Authorization/policyDefinitions@2024-05-
                     type: 'string'
                   }
                 }
-                variables: {
-                  // Map severity names to numeric allowed severity (-1 = block all)
-                  severityMap: {
-                    Low: 0
-                    Medium: 2
-                    High: 4
-                  }
-                }
                 resources: [
                   {
                     type: 'Microsoft.CognitiveServices/accounts/raiPolicies'

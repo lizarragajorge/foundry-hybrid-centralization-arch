@@ -5,9 +5,9 @@
 // enterprise-standard guardrail (raiPolicy) deployed by Policy #2.
 // This ensures no model deployment can exist without content safety.
 //
-// NOTE: Azure Policy's Modify effect does NOT support the
-// raiPolicyName alias on CognitiveServices deployments (not modifiable).
-// We use Deny instead — stronger enforcement that blocks at deploy-time.
+// Why Deny (not Modify): Azure Policy's Modify effect does NOT support the
+// raiPolicyName alias on CognitiveServices deployments (it is read-only at
+// the ARM layer). Deny provides stronger enforcement — blocks at deploy-time.
 //
 // Effects:
 //   Deny  — blocks any deployment missing raiPolicyName=enterprise-standard

@@ -71,7 +71,7 @@ $metricNames = @("SuccessfulCalls","TotalCalls","ProcessedPromptTokens","Generat
 foreach ($m in $metricNames) {
     $val = az monitor metrics list --resource $hubId --metric $m --aggregation Total --interval PT1H --start-time $st --end-time $et --query "value[0].timeseries[0].data[].total" -o tsv 2>$null
     $totalVal = ($val -split "`n" | ForEach-Object { [double]$_ } | Measure-Object -Sum).Sum
-    $unit = if ($m -eq "Latency") { "ms" } else { "" }
+    $unit = $(if ($m -eq "Latency") { "ms" } else { "" })
     Write-Host "    $($m.PadRight(25)) : $totalVal $unit" -ForegroundColor White
 }
 

@@ -1,18 +1,18 @@
 // ============================================================================
-// Policy #1: DeployIfNotExists — Standard Foundry Control Plane
+// Policy #1: Standard Foundry Control Plane Governance
 //
-// Purpose: Automatically deploy a standardized governance configuration on
-// every subscription that has a Foundry resource (Microsoft.CognitiveServices/
+// Purpose: Automatically deploy/enforce a standardized governance
+// configuration on every Foundry resource (Microsoft.CognitiveServices/
 // accounts with kind=AIServices). This ensures:
-//   - Diagnostic settings → central Log Analytics
-//   - Network ACLs hardened
-//   - System-assigned managed identity enabled
-//   - Standard tags applied
+//   - Diagnostic settings → central Log Analytics   (DINE — child resource)
+//   - disableLocalAuth = true                       (Modify — same resource)
+//   - Network ACLs hardened                         (Modify — same resource)
 //
-// Effect: DeployIfNotExists
-//   When a CognitiveServices account (AIServices) exists WITHOUT diagnostic
-//   settings pointing to the designated Log Analytics workspace, the policy
-//   automatically deploys them.
+// Effect selection rationale:
+//   DINE   → for diagnostic settings (a *child* resource that may not exist)
+//   Modify → for disableLocalAuth and network config (properties on the
+//            *same* resource — DINE's existenceCondition would always find
+//            the resource and never trigger remediation)
 //
 // Scope: Subscription or Management Group
 // ============================================================================
@@ -28,12 +28,6 @@ param logAnalyticsWorkspaceId string
 @description('Enforcement mode for the policy')
 @allowed(['Default', 'DoNotEnforce'])
 param enforcementMode string = 'Default'
-
-@description('Standard tags to apply to governed resources')
-param standardTags object = {
-  governedBy: 'ai-coe-policy'
-  complianceLevel: 'enterprise-standard'
-}
 
 // ─── Custom Policy Definition: DINE Diagnostic Settings ─────────────────────
 // Ensures every Foundry resource has diagnostic settings pointing to
@@ -165,25 +159,27 @@ resource policyDefDiagnostics 'Microsoft.Authorization/policyDefinitions@2024-05
   }
 }
 
-// ─── Custom Policy Definition: DINE Disable Local Auth ──────────────────────
+// ─── Custom Policy Definition: Modify Disable Local Auth ────────────────────
 // Ensures every Foundry resource has local auth disabled (Zero Trust).
+// Uses Modify effect (not DINE) because disableLocalAuth is a property on
+// the same resource — DINE requires a *related* child/extension resource.
 resource policyDefDisableLocalAuth 'Microsoft.Authorization/policyDefinitions@2024-05-01' = {
-  name: 'foundry-dine-disable-local-auth'
+  name: 'foundry-modify-disable-local-auth'
   properties: {
-    displayName: 'Foundry - Deploy disableLocalAuth on AI Services'
-    description: 'Automatically configure disableLocalAuth=true on all Foundry resources to enforce Entra ID authentication.'
+    displayName: 'Foundry - Modify disableLocalAuth on AI Services'
+    description: 'Automatically set disableLocalAuth=true on all Foundry resources to enforce Entra ID authentication.'
     policyType: 'Custom'
     mode: 'Indexed'
     metadata: {
       category: 'AI Governance'
-      version: '1.0.0'
+      version: '2.0.0'
     }
     parameters: {
       effect: {
         type: 'String'
-        defaultValue: 'DeployIfNotExists'
+        defaultValue: 'Modify'
         allowedValues: [
-          'DeployIfNotExists'
+          'Modify'
           'Disabled'
         ]
         metadata: {
@@ -212,78 +208,46 @@ resource policyDefDisableLocalAuth 'Microsoft.Authorization/policyDefinitions@20
       then: {
         effect: '[parameters(\'effect\')]'
         details: {
-          type: 'Microsoft.CognitiveServices/accounts'
-          name: '[field(\'name\')]'
           roleDefinitionIds: [
             // Cognitive Services Contributor
             '/providers/Microsoft.Authorization/roleDefinitions/25fbc0a9-bd7c-42a3-aa1a-3b75d497ee68'
           ]
-          existenceCondition: {
-            field: 'Microsoft.CognitiveServices/accounts/disableLocalAuth'
-            equals: true
-          }
-          deployment: {
-            properties: {
-              mode: 'incremental'
-              template: {
-                '$schema': 'https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#'
-                contentVersion: '1.0.0.0'
-                parameters: {
-                  resourceName: {
-                    type: 'string'
-                  }
-                  location: {
-                    type: 'string'
-                  }
-                }
-                resources: [
-                  {
-                    type: 'Microsoft.CognitiveServices/accounts'
-                    apiVersion: '2025-06-01'
-                    name: '[parameters(\'resourceName\')]'
-                    location: '[parameters(\'location\')]'
-                    properties: {
-                      disableLocalAuth: true
-                    }
-                  }
-                ]
-              }
-              parameters: {
-                resourceName: {
-                  value: '[field(\'name\')]'
-                }
-                location: {
-                  value: '[field(\'location\')]'
-                }
-              }
+          conflictEffect: 'audit'
+          operations: [
+            {
+              operation: 'addOrReplace'
+              field: 'Microsoft.CognitiveServices/accounts/disableLocalAuth'
+              value: true
             }
-          }
+          ]
         }
       }
     }
   }
 }
 
-// ─── Custom Policy Definition: DINE Network Hardening ───────────────────────
+// ─── Custom Policy Definition: Modify Network Hardening ────────────────────
 // Ensures Foundry resources have public network access disabled and
 // network ACLs set to Deny by default.
+// Uses Modify effect (not DINE) because publicNetworkAccess and networkAcls
+// are properties on the same resource.
 resource policyDefNetworkHarden 'Microsoft.Authorization/policyDefinitions@2024-05-01' = {
-  name: 'foundry-dine-network-harden'
+  name: 'foundry-modify-network-harden'
   properties: {
-    displayName: 'Foundry - Deploy network hardening on AI Services'
-    description: 'Automatically configure publicNetworkAccess=Disabled and default ACL=Deny on Foundry resources.'
+    displayName: 'Foundry - Modify network hardening on AI Services'
+    description: 'Automatically set publicNetworkAccess=Disabled and default ACL=Deny on Foundry resources.'
     policyType: 'Custom'
     mode: 'Indexed'
     metadata: {
       category: 'AI Governance'
-      version: '1.0.0'
+      version: '2.0.0'
     }
     parameters: {
       effect: {
         type: 'String'
-        defaultValue: 'DeployIfNotExists'
+        defaultValue: 'Modify'
         allowedValues: [
-          'DeployIfNotExists'
+          'Modify'
           'Disabled'
         ]
         metadata: {
@@ -303,68 +267,39 @@ resource policyDefNetworkHarden 'Microsoft.Authorization/policyDefinitions@2024-
             field: 'kind'
             equals: 'AIServices'
           }
+          {
+            anyOf: [
+              {
+                field: 'Microsoft.CognitiveServices/accounts/publicNetworkAccess'
+                notEquals: 'Disabled'
+              }
+              {
+                field: 'Microsoft.CognitiveServices/accounts/networkAcls.defaultAction'
+                notEquals: 'Deny'
+              }
+            ]
+          }
         ]
       }
       then: {
         effect: '[parameters(\'effect\')]'
         details: {
-          type: 'Microsoft.CognitiveServices/accounts'
-          name: '[field(\'name\')]'
           roleDefinitionIds: [
             '/providers/Microsoft.Authorization/roleDefinitions/25fbc0a9-bd7c-42a3-aa1a-3b75d497ee68'
           ]
-          existenceCondition: {
-            allOf: [
-              {
-                field: 'Microsoft.CognitiveServices/accounts/publicNetworkAccess'
-                equals: 'Disabled'
-              }
-              {
-                field: 'Microsoft.CognitiveServices/accounts/networkAcls.defaultAction'
-                equals: 'Deny'
-              }
-            ]
-          }
-          deployment: {
-            properties: {
-              mode: 'incremental'
-              template: {
-                '$schema': 'https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#'
-                contentVersion: '1.0.0.0'
-                parameters: {
-                  resourceName: {
-                    type: 'string'
-                  }
-                  location: {
-                    type: 'string'
-                  }
-                }
-                resources: [
-                  {
-                    type: 'Microsoft.CognitiveServices/accounts'
-                    apiVersion: '2025-06-01'
-                    name: '[parameters(\'resourceName\')]'
-                    location: '[parameters(\'location\')]'
-                    properties: {
-                      publicNetworkAccess: 'Disabled'
-                      networkAcls: {
-                        defaultAction: 'Deny'
-                        bypass: 'AzureServices'
-                      }
-                    }
-                  }
-                ]
-              }
-              parameters: {
-                resourceName: {
-                  value: '[field(\'name\')]'
-                }
-                location: {
-                  value: '[field(\'location\')]'
-                }
-              }
+          conflictEffect: 'audit'
+          operations: [
+            {
+              operation: 'addOrReplace'
+              field: 'Microsoft.CognitiveServices/accounts/publicNetworkAccess'
+              value: 'Disabled'
             }
-          }
+            {
+              operation: 'addOrReplace'
+              field: 'Microsoft.CognitiveServices/accounts/networkAcls.defaultAction'
+              value: 'Deny'
+            }
+          ]
         }
       }
     }
@@ -378,7 +313,7 @@ resource policySetControlPlane 'Microsoft.Authorization/policySetDefinitions@202
   name: 'foundry-controlplane-initiative'
   properties: {
     displayName: 'Foundry - Standard Control Plane Governance'
-    description: 'Deploy-if-not-exists initiative that auto-configures every Foundry resource in the subscription with: diagnostics → central LAW, disableLocalAuth, network hardening.'
+    description: 'Initiative that auto-configures every Foundry resource in the subscription with: diagnostics → central LAW (DINE), disableLocalAuth (Modify), network hardening (Modify).'
     policyType: 'Custom'
     metadata: {
       category: 'AI Governance'
