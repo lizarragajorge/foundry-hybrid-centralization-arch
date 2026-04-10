@@ -19,7 +19,7 @@ Usage:
   python agent-gateway-demo.py --gateway-url <APIM_URL>
 
   Or set environment variable:
-    APIM_GATEWAY_URL=https://contoso-foundry-apim-dev.azure-api.net
+    APIM_GATEWAY_URL=https://<your-apim-name>.azure-api.net
 """
 
 import argparse

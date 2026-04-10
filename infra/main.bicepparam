@@ -84,6 +84,49 @@ param businessUnits = [
       'external-model-sim'       // Simulated external model (routes to gpt-4o-mini via APIM rewrite)
     ]
   }
+  {
+    name: 'operations'
+    displayName: 'Operations & Supply Chain'
+    vnetAddressPrefix: '10.4.0.0/16'
+    appSubnetPrefix: '10.4.1.0/24'
+    peSubnetPrefix: '10.4.2.0/24'
+    allowedModels: [
+      'gpt-4o-mini'              // Process automation
+      'text-embedding-3-large'   // Document search
+    ]
+  }
+  {
+    name: 'legal'
+    displayName: 'Legal & Compliance'
+    vnetAddressPrefix: '10.5.0.0/16'
+    appSubnetPrefix: '10.5.1.0/24'
+    peSubnetPrefix: '10.5.2.0/24'
+    allowedModels: [
+      'gpt-4o-mini'              // Contract review
+    ]
+  }
+  {
+    name: 'eu-compliance'
+    displayName: 'EU Compliance & Privacy'
+    vnetAddressPrefix: '10.6.0.0/16'
+    appSubnetPrefix: '10.6.1.0/24'
+    peSubnetPrefix: '10.6.2.0/24'
+    allowedModels: [
+      'gpt-4o'                   // GDPR analysis requires premium reasoning
+      'gpt-4o-mini'              // Routine compliance checks
+    ]
+  }
+  {
+    name: 'eu-sales'
+    displayName: 'EU Sales & Marketing'
+    vnetAddressPrefix: '10.7.0.0/16'
+    appSubnetPrefix: '10.7.1.0/24'
+    peSubnetPrefix: '10.7.2.0/24'
+    allowedModels: [
+      'gpt-4o-mini'              // Content generation
+      'text-embedding-3-large'   // Customer search
+    ]
+  }
 ]
 
 // ─── Governance ─────────────────────────────────────────────────────────────
@@ -115,6 +158,6 @@ param enablePrivateEndpoints = false // Set to true + hubPublicNetworkAccess = '
 // ─── AI Gateway (APIM) ──────────────────────────────────────────────────────
 
 param enableAiGateway = true
-param apimPublisherEmail = 'jlizarraga@microsoft.com'
+param apimPublisherEmail = '' // Set to your APIM publisher email before deploying
 param apimSku = 'BasicV2'
 param defaultBuRateLimitTPM = 0 // 0 = unlimited; set per-BU TPM quota (e.g., 10000)

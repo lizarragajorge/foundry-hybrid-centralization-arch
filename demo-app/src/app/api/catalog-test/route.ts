@@ -35,6 +35,10 @@ const BU_ALLOWED_MODELS: Record<string, string[]> = {
   finance: ["gpt-4o", "gpt-4o-mini"],
   marketing: ["gpt-4o-mini", "text-embedding-3-large"],
   engineering: ["gpt-4o", "gpt-4o-mini", "text-embedding-3-large", "external-model-sim"],
+  operations: ["gpt-4o-mini", "text-embedding-3-large"],
+  legal: ["gpt-4o-mini"],
+  "eu-compliance": ["gpt-4o", "gpt-4o-mini"],
+  "eu-sales": ["gpt-4o-mini", "text-embedding-3-large"],
 };
 
 const CatalogTestSchema = z.object({

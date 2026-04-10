@@ -3,9 +3,22 @@ demo-app/node_modules/
 demo-app/.next/
 demo-app/out/
 
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
 # Environment (contains Azure config)
+.env
+.env.*
 demo-app/.env.local
 demo-app/.env*.local
+functions/**/.env
 
 # Build artifacts
 infra/main.json
@@ -17,3 +30,9 @@ Thumbs.db
 # IDE
 .vscode/settings.json
 .idea/
+
+# Secrets / certs
+*.pem
+*.pfx
+*.p12
+*.key

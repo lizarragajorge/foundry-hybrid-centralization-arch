@@ -47,7 +47,7 @@ from azure.identity import DefaultAzureCredential
 # In SIMULATION mode, forward to Foundry gpt-4o-mini
 FOUNDRY_ENDPOINT = os.environ.get(
     "FOUNDRY_ENDPOINT",
-    "https://contoso-foundry-hub-dev.cognitiveservices.azure.com/"
+    ""
 )
 REAL_DEPLOYMENT = os.environ.get("REAL_DEPLOYMENT", "gpt-4o-mini")
 EXTERNAL_MODEL_NAME = os.environ.get("EXTERNAL_MODEL_NAME", "external-model-sim")

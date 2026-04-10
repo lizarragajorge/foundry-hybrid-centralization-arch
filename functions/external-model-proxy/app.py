@@ -12,7 +12,7 @@ from azure.identity import DefaultAzureCredential
 
 app = Flask(__name__)
 
-FOUNDRY_ENDPOINT = os.environ.get("FOUNDRY_ENDPOINT", "https://contoso-foundry-hub-dev.cognitiveservices.azure.com/")
+FOUNDRY_ENDPOINT = os.environ.get("FOUNDRY_ENDPOINT", "")
 REAL_DEPLOYMENT = os.environ.get("REAL_DEPLOYMENT", "gpt-4o-mini")
 MODEL_NAME = os.environ.get("EXTERNAL_MODEL_NAME", "external-model-sim")
 

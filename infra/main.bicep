@@ -309,6 +309,42 @@ module policies 'modules/governance/policy.bicep' = {
   }
 }
 
+// ─── 8a. DINE: Auto-deploy standard control plane governance ────────────────
+// Ensures every Foundry resource gets: diagnostics → central LAW,
+// disableLocalAuth, network hardening.
+module controlPlaneDine 'modules/governance/policy-dine-controlplane.bicep' = {
+  name: 'controlPlaneDinePolicy'
+  params: {
+    location: location
+    logAnalyticsWorkspaceId: monitoring.outputs.logAnalyticsWorkspaceId
+    enforcementMode: policyEnforcementMode
+  }
+}
+
+// ─── 8b. DINE: Auto-deploy standard RAI guardrails ─────────────────────────
+// Ensures every Foundry resource has an enterprise-standard raiPolicy
+// with content filters configured.
+module guardrailsDine 'modules/governance/policy-dine-guardrails.bicep' = {
+  name: 'guardrailsDinePolicy'
+  params: {
+    location: location
+    enforcementMode: policyEnforcementMode
+  }
+}
+
+// ─── 8c. Modify: Enforce guardrail on all asset deployments ─────────────────
+// Automatically sets raiPolicyName on every model/agent/tool deployment
+// to reference the enterprise-standard guardrail from 8b.
+module assetGuardrailModify 'modules/governance/policy-modify-assets.bicep' = {
+  name: 'assetGuardrailModifyPolicy'
+  dependsOn: [guardrailsDine]
+  params: {
+    location: location
+    enforcementMode: policyEnforcementMode
+    standardRaiPolicyName: guardrailsDine.outputs.standardRaiPolicyName
+  }
+}
+
 // ─── 9. Metric Alert Rules ──────────────────────────────────────────────────
 
 // Alerts deploy after Foundry hub exists (scoped to its resource ID).
@@ -431,3 +467,12 @@ output hubVnetId string = networking.outputs.hubVnetId
 
 @description('AI Gateway URL (empty if not enabled)')
 output aiGatewayUrl string = enableAiGateway ? aiGateway.outputs.apimGatewayUrl : ''
+
+@description('Control plane DINE policy initiative ID')
+output controlPlanePolicySetId string = controlPlaneDine.outputs.policySetDefinitionId
+
+@description('Guardrails DINE policy ID')
+output guardrailsPolicyId string = guardrailsDine.outputs.policyDefinitionId
+
+@description('Asset guardrail Modify policy initiative ID')
+output assetGuardrailPolicySetId string = assetGuardrailModify.outputs.policySetDefinitionId
