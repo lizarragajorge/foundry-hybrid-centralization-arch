@@ -30,6 +30,20 @@ type TraceRow = {
   type?: string;
 };
 
+type KqlTable = { columns: { name: string }[]; rows: unknown[][] };
+
+// Map an App Insights KQL table into per-row objects keyed by column name.
+function kqlToRows(table: KqlTable): Record<string, unknown>[] {
+  const cols = table.columns.map((c) => c.name);
+  return table.rows.map((row) => {
+    const obj: Record<string, unknown> = {};
+    cols.forEach((col, i) => { obj[col] = row[i]; });
+    return obj;
+  });
+}
+
+const asStr = (v: unknown): string => (v == null ? "" : String(v));
+
 export default function TelemetryDashboard() {
   const { activeBU } = useBUFilter();
 
@@ -116,41 +130,29 @@ export default function TelemetryDashboard() {
 
       // Parse requests table
       if (data.requests?.tables?.[0]) {
-        const table = data.requests.tables[0];
-        const cols = table.columns.map((c: any) => c.name);
-        const rows: TraceRow[] = table.rows.map((row: any[]) => {
-          const obj: any = {};
-          cols.forEach((col: string, i: number) => { obj[col] = row[i]; });
-          return {
-            timestamp: obj.timestamp,
-            name: obj.name,
-            duration: obj.duration,
-            resultCode: obj.resultCode,
-            success: obj.success,
-            operationId: obj.operation_Id,
-          };
-        });
+        const rows: TraceRow[] = kqlToRows(data.requests.tables[0]).map((obj) => ({
+          timestamp: asStr(obj.timestamp),
+          name: asStr(obj.name),
+          duration: Number(obj.duration ?? 0),
+          resultCode: asStr(obj.resultCode),
+          success: Boolean(obj.success),
+          operationId: asStr(obj.operation_Id),
+        }));
         setTraceRequests(rows);
       }
 
       // Parse dependencies table
       if (data.dependencies?.tables?.[0]) {
-        const table = data.dependencies.tables[0];
-        const cols = table.columns.map((c: any) => c.name);
-        const rows: TraceRow[] = table.rows.map((row: any[]) => {
-          const obj: any = {};
-          cols.forEach((col: string, i: number) => { obj[col] = row[i]; });
-          return {
-            timestamp: obj.timestamp,
-            name: obj.name,
-            duration: obj.duration,
-            resultCode: obj.resultCode,
-            success: obj.success,
-            operationId: obj.operation_Id,
-            target: obj.target,
-            type: obj.type,
-          };
-        });
+        const rows: TraceRow[] = kqlToRows(data.dependencies.tables[0]).map((obj) => ({
+          timestamp: asStr(obj.timestamp),
+          name: asStr(obj.name),
+          duration: Number(obj.duration ?? 0),
+          resultCode: asStr(obj.resultCode),
+          success: Boolean(obj.success),
+          operationId: asStr(obj.operation_Id),
+          target: obj.target != null ? asStr(obj.target) : undefined,
+          type: obj.type != null ? asStr(obj.type) : undefined,
+        }));
         setTraceDeps(rows);
       }
     } catch (err) {

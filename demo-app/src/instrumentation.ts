@@ -36,7 +36,7 @@ export async function register() {
         new HttpInstrumentation({
           // Capture request/response headers for debugging
           requestHook: (span, request) => {
-            span.setAttribute("http.request.path", (request as any).path || "");
+            span.setAttribute("http.request.path", (request as { path?: string }).path || "");
           },
         }),
       ],
