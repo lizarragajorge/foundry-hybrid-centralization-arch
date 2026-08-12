@@ -5,7 +5,7 @@
 This project provides two things:
 
 1. **`infra/`** — A production-grade Bicep landing zone you can fork, parameterize, and deploy to your own Azure subscription in minutes
-2. **`demo-app/`** — A 9-tab interactive web app that proves it works by making live API calls against the deployed infrastructure
+2. **`demo-app/`** — A 5-tab interactive web app that proves it works by making live API calls against the deployed infrastructure
 
 ---
 
@@ -111,19 +111,29 @@ All resources deploy idempotently via a single `az deployment sub create` comman
 
 ## Demo App (Optional)
 
-A 9-tab interactive web app that makes live API calls against your deployment:
+A 5-tab interactive web app, organized around the one idea the pattern exists to prove — **decentralized consumption, centralized control**:
 
-| Tab | Proves |
-|-----|--------|
-| **Architecture** | Visual understanding of the hybrid pattern |
-| **Simulation** | BU-scoped AI workloads against centralized models |
-| **Arena** | GPT-4o vs GPT-4o-mini quality/cost/latency tradeoff |
-| **Trace** | Animated security checkpoint flow (Entra → RBAC → Model) |
-| **Load Test** | Concurrent multi-BU traffic with TPM governance |
-| **Telemetry** | Azure Monitor metrics + OTel distributed traces |
-| **Cost** | Real per-BU and per-model cost attribution |
-| **Guardrails** | Content Safety filter testing (PASSED/BLOCKED) |
-| **Governance** | Policy compliance, network topology, Zero Trust status |
+| Tab | Scope | Proves |
+|-----|-------|--------|
+| **Hybrid Overview** | Both | Split view of centralized hub vs federated BUs — click a BU to see exactly what it can reach + the detailed architecture map |
+| **Central Platform** | Centralized | Model catalog, governance & security, agent gateway, and one-parameter BU onboarding |
+| **BU Workspace** | Federated | Per-BU simulations, model arena, and Content Safety guardrails |
+| **Live Proof** | Seam | Animated Entra→RBAC→Policy request trace + concurrent multi-BU load under TPM governance |
+| **Chargeback** | Centralized | Cross-subscription billed cost per BU (Cost Management) alongside real-time token accrual + Azure Monitor telemetry |
+
+### Central vs Federated responsibilities
+
+| Function | Centralized (AI CoE Hub) | Federated (BU Spoke) |
+|----------|:------------------------:|:--------------------:|
+| Model deployments | ✅ deployed once | consumes |
+| Identity & keys | ✅ Entra ID, local auth off | own managed identity |
+| Azure Policy | ✅ authored + enforced | inherits |
+| Networking | ✅ hub + peering + PE | own spoke VNet |
+| Key Vault / secrets | ✅ owns | scoped access |
+| Content Safety (RAI) | ✅ standard guardrail | inherits |
+| Cost visibility / chargeback | ✅ aggregates | tagged for allocation |
+| Agents, evals, prompts, files | — | ✅ self-service |
+| Which approved models to use | catalog owner | ✅ picks from allowed set |
 
 > **Details:** [demo-app/README.md](demo-app/README.md)
 
