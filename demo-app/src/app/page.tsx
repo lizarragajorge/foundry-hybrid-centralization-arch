@@ -81,8 +81,8 @@ const tabMeta: Record<TabId, { title: string; subtitle: string; badge: string }>
   },
   cost: {
     title: "Cost Attribution",
-    subtitle: "Per-BU and per-model cost breakdown with real-time usage tracking and optimization insights",
-    badge: "FINANCIAL",
+    subtitle: "Cross-subscription chargeback: actual billed cost (Cost Management) per BU alongside real-time token accrual",
+    badge: "CHARGEBACK",
   },
   guardrails: {
     title: "Content Safety Guardrails",

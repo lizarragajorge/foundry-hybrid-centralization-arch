@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useSyncExternalStore } from "react";
+import { useState, useEffect, useMemo, useCallback, useSyncExternalStore } from "react";
 import { motion } from "framer-motion";
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -8,7 +8,7 @@ import {
 } from "recharts";
 import {
   DollarSign, TrendingUp, Calculator, Users, Zap, Hash,
-  RefreshCw, Activity, Clock, Layers
+  RefreshCw, Activity, Clock, Layers, CreditCard, Building2, AlertTriangle
 } from "lucide-react";
 import { Card, MetricCard, Badge } from "@/components/ui/shared";
 import {
@@ -17,9 +17,27 @@ import {
   calcCost, MODEL_PRICING, BU_META,
 } from "@/lib/usage-tracker";
 
+function fmtMoney(v: number, currency = "USD") {
+  const sym = currency === "USD" ? "$" : "";
+  const num = v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return sym ? `${sym}${num}` : `${num} ${currency}`;
+}
+
 type AzureMetrics = {
   metrics: Record<string, number>;
   perDeployment: Record<string, Record<string, number>>;
+};
+
+type Chargeback = {
+  available: boolean;
+  reason?: string;
+  tag?: string;
+  timeframe?: string;
+  currency: string;
+  totalBilled: number;
+  subscriptions: Array<{ id: string; name: string; region: string; billed: number; error?: string }>;
+  byBU: Array<{ businessUnit: string; billed: number; subscriptions: string[] }>;
+  byService: Array<{ service: string; billed: number }>;
 };
 
 export default function CostCalculator() {
@@ -34,6 +52,34 @@ export default function CostCalculator() {
     getUsageRecords,
     getUsageRecords
   );
+
+  // Real billed cost from Azure Cost Management (cross-subscription chargeback)
+  const [chargeback, setChargeback] = useState<Chargeback | null>(null);
+  const [chargebackLoading, setChargebackLoading] = useState(true);
+
+  const fetchChargeback = useCallback(async () => {
+    setChargebackLoading(true);
+    try {
+      const res = await fetch("/api/chargeback");
+      const data = await res.json();
+      setChargeback(data);
+    } catch { /* ignore */ }
+    setChargebackLoading(false);
+  }, []);
+
+  useEffect(() => {
+    async function loadChargeback() {
+      try {
+        const res = await fetch("/api/chargeback");
+        const data = await res.json();
+        setChargeback(data);
+      } catch { /* ignore */ }
+      setChargebackLoading(false);
+    }
+    loadChargeback();
+    const interval = setInterval(loadChargeback, 60000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Fetch real Azure metrics
   useEffect(() => {
@@ -100,6 +146,31 @@ export default function CostCalculator() {
   );
   const sessionTotalTokens = sessionRecords.reduce((s, r) => s + r.totalTokens, 0);
 
+  // === Chargeback: billed (Cost Management) vs accrued (session token estimate) ===
+  const buChargeback = useMemo(() => {
+    const accruedByBU = new Map<string, number>();
+    for (const b of sessionByBU) accruedByBU.set(b.bu, b.cost);
+    const billedByBU = new Map<string, { billed: number; subs: string[] }>();
+    for (const b of chargeback?.byBU || []) billedByBU.set(b.businessUnit, { billed: b.billed, subs: b.subscriptions });
+    const names = new Set<string>([...accruedByBU.keys(), ...billedByBU.keys()]);
+    return Array.from(names)
+      .map((bu) => ({
+        bu,
+        color: BU_META[bu]?.color || "#6366f1",
+        billed: billedByBU.get(bu)?.billed || 0,
+        subs: billedByBU.get(bu)?.subs || [],
+        accrued: accruedByBU.get(bu) || 0,
+      }))
+      .sort((a, b) => b.billed - a.billed || b.accrued - a.accrued);
+  }, [sessionByBU, chargeback]);
+
+  const chargebackBarData = buChargeback.map((b) => ({
+    name: b.bu.split(" ")[0],
+    billed: parseFloat(b.billed.toFixed(2)),
+    accrued: parseFloat(b.accrued.toFixed(4)),
+    color: b.color,
+  }));
+
   // Chart data
   const buChartData = sessionByBU.map((b) => ({
     name: b.bu.split(" ")[0],
@@ -128,7 +199,48 @@ export default function CostCalculator() {
   return (
     <div className="space-y-6">
       {/* Data Source Switcher / Banner */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-3 gap-4">
+        {/* Cost Management (billed) */}
+        <Card className="p-4 border-emerald-500/20 bg-gradient-to-r from-emerald-500/5 to-transparent">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <CreditCard size={16} className="text-emerald-400" />
+              <span className="text-sm font-semibold text-white">Cost Management (Billed)</span>
+              <Badge color="green">MTD</Badge>
+            </div>
+            <button
+              onClick={() => { setChargebackLoading(true); fetchChargeback(); }}
+              className="text-xs text-slate-500 hover:text-white flex items-center gap-1"
+            >
+              <RefreshCw size={10} className={chargebackLoading ? "animate-spin" : ""} /> Refresh
+            </button>
+          </div>
+          {chargeback?.available ? (
+            <>
+              <div className="grid grid-cols-3 gap-3 text-center">
+                <div>
+                  <div className="text-[10px] text-slate-500 uppercase">Subs</div>
+                  <div className="text-lg font-bold text-white">{chargeback.subscriptions.length}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] text-slate-500 uppercase">BUs</div>
+                  <div className="text-lg font-bold text-white">{chargeback.byBU.length}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] text-slate-500 uppercase">Billed</div>
+                  <div className="text-lg font-bold text-emerald-400">{fmtMoney(chargeback.totalBilled, chargeback.currency)}</div>
+                </div>
+              </div>
+              <div className="text-[10px] text-slate-600 mt-2">Actual billed cost &middot; grouped by {chargeback.tag} tag</div>
+            </>
+          ) : (
+            <div className="flex items-center gap-2 text-[11px] text-amber-400/80 py-2">
+              <AlertTriangle size={12} />
+              <span>{chargebackLoading ? "Querying Cost Management\u2026" : "Billed data unavailable \u2014 needs Cost Management Reader"}</span>
+            </div>
+          )}
+        </Card>
+
         {/* Azure Monitor (real infra) */}
         <Card className="p-4 border-cyan-500/20 bg-gradient-to-r from-cyan-500/5 to-transparent">
           <div className="flex items-center justify-between mb-3">
@@ -199,6 +311,123 @@ export default function CostCalculator() {
           )}
         </Card>
       </div>
+
+      {/* Cross-Subscription Chargeback: Billed vs Accrued */}
+      {chargeback?.available && chargeback.byBU.length > 0 ? (
+        <Card className="p-5 border-emerald-500/20">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-semibold text-slate-300 flex items-center gap-2">
+              <Building2 size={14} className="text-emerald-400" />
+              Cross-Subscription Chargeback &mdash; Billed (MTD) vs Real-Time Accrual
+            </h3>
+            <Badge color="green">{chargeback.subscriptions.length} subscriptions</Badge>
+          </div>
+
+          {/* Subscription cards */}
+          <div className="grid grid-cols-3 gap-3 mb-5">
+            {chargeback.subscriptions.map((s) => (
+              <div key={s.id} className="bg-[#111827] rounded-lg p-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-white font-medium">{s.name}</span>
+                  <span className="text-[10px] text-slate-500">{s.region}</span>
+                </div>
+                {s.error ? (
+                  <div className="text-[10px] text-amber-400/80 mt-1 truncate" title={s.error}>no access</div>
+                ) : (
+                  <div className="text-lg font-bold text-emerald-400 mt-1">{fmtMoney(s.billed, chargeback.currency)}</div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Billed vs accrued bar chart */}
+          <div className="h-56 mb-5">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chargebackBarData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#2d3561" />
+                <XAxis dataKey="name" tick={{ fill: "#94a3b8", fontSize: 12 }} axisLine={{ stroke: "#2d3561" }} />
+                <YAxis tick={{ fill: "#94a3b8", fontSize: 12 }} axisLine={{ stroke: "#2d3561" }} tickFormatter={(v) => `$${v}`} />
+                <Tooltip contentStyle={{ background: "#1a1f36", border: "1px solid #2d3561", borderRadius: "8px" }} labelStyle={{ color: "#f1f5f9" }} />
+                <Bar dataKey="billed" name="Billed (MTD)" radius={[4, 4, 0, 0]} fill="#10b981" />
+                <Bar dataKey="accrued" name="Accrued (session)" radius={[4, 4, 0, 0]} fill="#8b5cf6" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Chargeback table */}
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-[#2d3561]">
+                  <th className="text-left py-2 text-slate-400 font-medium">Business Unit</th>
+                  <th className="text-left py-2 text-slate-400 font-medium">Subscriptions</th>
+                  <th className="text-right py-2 text-slate-400 font-medium">Billed MTD</th>
+                  <th className="text-right py-2 text-slate-400 font-medium">Accrued (session)</th>
+                  <th className="text-right py-2 text-slate-400 font-medium">% of Billed</th>
+                </tr>
+              </thead>
+              <tbody>
+                {buChargeback.map((b) => (
+                  <tr key={b.bu} className="border-b border-[#2d3561]/50 hover:bg-indigo-500/5">
+                    <td className="py-2.5">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: b.color }} />
+                        <span className="text-white font-medium">{b.bu}</span>
+                      </div>
+                    </td>
+                    <td className="py-2.5 text-slate-400 text-xs">{b.subs.join(", ") || "\u2014"}</td>
+                    <td className="py-2.5 text-right font-mono text-emerald-400">{fmtMoney(b.billed, chargeback.currency)}</td>
+                    <td className="py-2.5 text-right font-mono text-purple-300">${b.accrued.toFixed(5)}</td>
+                    <td className="py-2.5 text-right font-mono text-slate-400">
+                      {chargeback.totalBilled > 0 ? ((b.billed / chargeback.totalBilled) * 100).toFixed(0) : 0}%
+                    </td>
+                  </tr>
+                ))}
+                <tr className="border-t-2 border-emerald-500/20 font-bold">
+                  <td className="py-2.5 text-white">Total</td>
+                  <td></td>
+                  <td className="py-2.5 text-right font-mono text-emerald-400">{fmtMoney(chargeback.totalBilled, chargeback.currency)}</td>
+                  <td className="py-2.5 text-right font-mono text-purple-300">${sessionTotalCost.toFixed(5)}</td>
+                  <td className="py-2.5 text-right text-slate-400">100%</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p className="text-[11px] text-slate-600 mt-3">
+            <span className="text-emerald-400">Billed</span> = actual Azure Cost Management charges (month-to-date), grouped by the <span className="font-mono">{chargeback.tag}</span> tag across all subscriptions.
+            <span className="text-purple-300 ml-1">Accrued</span> = live token-based estimate from this session. Billed covers all resources (compute, networking, storage); accrued covers only model inference this session.
+          </p>
+
+          {/* Service breakdown */}
+          {chargeback.byService.length > 0 && (
+            <div className="mt-5 pt-4 border-t border-[#2d3561]">
+              <h4 className="text-xs font-semibold text-slate-400 mb-3 flex items-center gap-2">
+                <Layers size={12} className="text-cyan-400" /> Billed by Azure Service
+              </h4>
+              <div className="grid grid-cols-4 gap-2">
+                {chargeback.byService.slice(0, 8).map((s) => (
+                  <div key={s.service} className="bg-[#111827] rounded-lg p-2.5">
+                    <div className="text-[10px] text-slate-500 truncate" title={s.service}>{s.service}</div>
+                    <div className="text-sm font-bold text-emerald-400 font-mono">{fmtMoney(s.billed, chargeback.currency)}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </Card>
+      ) : !chargebackLoading && chargeback && !chargeback.available ? (
+        <Card className="p-5 border-amber-500/20 bg-gradient-to-r from-amber-500/5 to-transparent">
+          <h3 className="text-sm font-semibold text-amber-400 mb-2 flex items-center gap-2">
+            <AlertTriangle size={14} /> Billed Chargeback Unavailable
+          </h3>
+          <p className="text-sm text-slate-300">
+            Actual billed cost from Azure Cost Management could not be retrieved. Grant the app identity the
+            <span className="font-mono text-white"> Cost Management Reader</span> role at the management-group (or per-subscription) scope,
+            and set <span className="font-mono text-white">AZURE_SUBSCRIPTION_IDS</span>. Real-time token accrual below still works.
+          </p>
+          {chargeback.reason && <p className="text-[11px] text-slate-600 mt-2 font-mono">{chargeback.reason}</p>}
+        </Card>
+      ) : null}
 
       {/* Per-Deployment Real Metrics (from Azure) */}
       {perDeployData.length > 0 && (

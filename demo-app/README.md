@@ -26,6 +26,11 @@ AZURE_LOG_ANALYTICS_WORKSPACE=<law-name>
 AZURE_MONITORING_RG=<monitoring-rg>
 APPLICATIONINSIGHTS_CONNECTION_STRING=<from App Insights>
 
+# Cross-subscription chargeback (Cost tab). Optional — falls back to AZURE_SUBSCRIPTION_ID.
+# Requires the signed-in identity to have "Cost Management Reader" at each subscription (or MG) scope.
+AZURE_SUBSCRIPTION_IDS=[{"id":"<sub-1>","name":"US East (Hub)","region":"eastus2"},{"id":"<sub-2>","name":"US West","region":"westus3"}]
+AZURE_CHARGEBACK_TAG=businessUnit   # tag key used for per-BU cost allocation
+
 # Public (safe for browser)
 NEXT_PUBLIC_APP_NAME=Azure Foundry Hybrid
 ```
