@@ -116,6 +116,6 @@ The demo app (`demo-app/`) follows secure-by-default practices:
 - [ ] Populate Entra ID group object IDs for RBAC
 - [ ] Enable customer-managed keys if required by compliance
 - [ ] Configure alert action groups with team email addresses
-- [ ] Deploy the demo app to Azure App Service with a managed identity (`DefaultAzureCredential` auto-selects it — no code change needed)
+- [ ] Deploy the demo app to Azure App Service (`deployDemoApp=true` + `scripts/deploy-app.ps1`) — its managed identity is auto-selected by `DefaultAzureCredential`
 - [ ] Enable audit logging for Key Vault access events
 - [ ] Review and tighten NSG rules on PE subnets

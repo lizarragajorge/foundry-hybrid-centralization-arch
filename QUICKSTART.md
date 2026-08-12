@@ -124,6 +124,25 @@ npm run dev
 # Open http://localhost:3000
 ```
 
+## Step 8: Host the Demo App in Azure (Optional)
+
+To run the app in the cloud instead of locally, deploy the infra with the demo-app flag, then push the code. The App Service gets a system-assigned managed identity with exactly the roles the app needs (Azure AI User on the hub, Monitoring Reader, Cost Management Reader) — `DefaultAzureCredential` picks it up automatically, so no code changes.
+
+```powershell
+# 1. Provision the App Service (globally-unique name required)
+.\scripts\deploy.ps1 -Preview   # optional what-if
+az deployment sub create `
+  --location eastus2 `
+  --template-file infra/main.bicep `
+  --parameters infra/main.bicepparam `
+  --parameters deployDemoApp=true demoAppName=<your-unique-app-name>
+
+# 2. Deploy the app code (App Service builds it server-side)
+.\scripts\deploy-app.ps1 -AppName <your-unique-app-name>
+```
+
+The deployment output includes `demoAppUrl`. First request triggers a server-side build and may take a few minutes.
+
 ## Verify It Works
 
 ```bash

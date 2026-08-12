@@ -121,6 +121,17 @@ param apimSku string = 'BasicV2'
 @description('Per-BU tokens-per-minute rate limit (0 = unlimited)')
 param defaultBuRateLimitTPM int = 0
 
+// ─── Demo App Hosting Parameters ────────────────────────────────────────────
+
+@description('Deploy the demo web app to Azure App Service')
+param deployDemoApp bool = false
+
+@description('Globally-unique name for the demo Web App (defaults to <org>-foundry-demo-<env>)')
+param demoAppName string = ''
+
+@description('App Service Plan SKU for the demo app')
+param demoAppSku string = 'B1'
+
 // ─── Computed Values ────────────────────────────────────────────────────────
 
 var tags = union(globalTags, {
@@ -133,6 +144,8 @@ var tags = union(globalTags, {
 var hubResourceGroupName = 'rg-${orgPrefix}-foundry-hub-${environment}'
 var monitoringResourceGroupName = 'rg-${orgPrefix}-foundry-monitoring-${environment}'
 var networkingResourceGroupName = 'rg-${orgPrefix}-foundry-networking-${environment}'
+var appResourceGroupName = 'rg-${orgPrefix}-foundry-app-${environment}'
+var demoAppNameResolved = !empty(demoAppName) ? demoAppName : '${orgPrefix}-foundry-demo-${environment}'
 
 // ─── Resource Groups ────────────────────────────────────────────────────────
 
@@ -168,6 +181,13 @@ resource spokeResourceGroups 'Microsoft.Resources/resourceGroups@2024-03-01' = [
     })
   }
 ]
+
+// Demo App Resource Group (optional)
+resource appResourceGroup 'Microsoft.Resources/resourceGroups@2024-03-01' = if (deployDemoApp) {
+  name: appResourceGroupName
+  location: location
+  tags: union(tags, { role: 'demo-app' })
+}
 
 // ─── 1. Observability (Deploy First) ────────────────────────────────────────
 
@@ -438,8 +458,69 @@ module apimMiRbac 'modules/governance/rbac-mi.bicep' = if (enableAiGateway) {
   scope: hubResourceGroup
   params: {
     foundryResourceId: foundryHub.outputs.foundryResourceId
-    principalId: enableAiGateway ? aiGateway.outputs.apimPrincipalId : ''
+    principalId: aiGateway.?outputs.apimPrincipalId ?? ''
     roleDescription: 'APIM AI Gateway managed identity - Cognitive Services User'
+  }
+}
+
+// ─── 12. Demo App Hosting (Optional) ──────────────────────────────────────
+
+// Next.js demo app on App Service Linux. Its system-assigned MI is granted the
+// exact data-plane + read roles the app needs; DefaultAzureCredential picks it up.
+module demoApp 'modules/hosting/appservice.bicep' = if (deployDemoApp) {
+  scope: appResourceGroup
+  params: {
+    location: location
+    tags: tags
+    appName: demoAppNameResolved
+    skuName: demoAppSku
+    logAnalyticsWorkspaceId: monitoring.outputs.logAnalyticsWorkspaceId
+    appSettings: [
+      { name: 'AZURE_FOUNDRY_ENDPOINT', value: foundryHub.outputs.foundryEndpoint }
+      { name: 'AZURE_FOUNDRY_NAME', value: foundryHub.outputs.foundryResourceName }
+      { name: 'AZURE_FOUNDRY_RESOURCE_GROUP', value: hubResourceGroupName }
+      { name: 'AZURE_SUBSCRIPTION_ID', value: subscription().subscriptionId }
+      { name: 'AZURE_LOG_ANALYTICS_WORKSPACE', value: monitoring.outputs.logAnalyticsWorkspaceName }
+      { name: 'AZURE_MONITORING_RG', value: monitoringResourceGroupName }
+      { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', value: monitoring.outputs.appInsightsConnectionString }
+      { name: 'AZURE_CHARGEBACK_TAG', value: 'businessUnit' }
+      { name: 'NEXT_PUBLIC_APP_NAME', value: 'Azure Foundry Hybrid' }
+      { name: 'AZURE_APIM_GATEWAY_URL', value: aiGateway.?outputs.apimGatewayUrl ?? '' }
+    ]
+  }
+}
+
+// Demo app MI → Azure AI User on the Foundry hub (data-plane inference)
+module demoAppAiUser 'modules/governance/rbac-mi.bicep' = if (deployDemoApp) {
+  name: 'demoAppAiUser'
+  scope: hubResourceGroup
+  params: {
+    foundryResourceId: foundryHub.outputs.foundryResourceId
+    principalId: demoApp.?outputs.principalId ?? ''
+    roleDescription: 'Demo app managed identity - AI User'
+  }
+}
+
+// Demo app MI → Monitoring Reader at subscription scope
+// Covers Azure Monitor metrics, Log Analytics queries, policy state + Resource Graph reads.
+resource demoAppMonitoringReader 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (deployDemoApp) {
+  name: guid(subscription().id, demoAppNameResolved, 'monitoring-reader')
+  properties: {
+    principalId: demoApp.?outputs.principalId ?? ''
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '43d0d8ad-25c7-4714-9337-8ba259a9fe05')
+    principalType: 'ServicePrincipal'
+    description: 'Demo app - Monitoring Reader (metrics + logs)'
+  }
+}
+
+// Demo app MI → Cost Management Reader at subscription scope (chargeback)
+resource demoAppCostReader 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (deployDemoApp) {
+  name: guid(subscription().id, demoAppNameResolved, 'cost-reader')
+  properties: {
+    principalId: demoApp.?outputs.principalId ?? ''
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '72fafb9e-0641-4937-9268-a91bfd8191a3')
+    principalType: 'ServicePrincipal'
+    description: 'Demo app - Cost Management Reader (chargeback)'
   }
 }
 
@@ -466,7 +547,10 @@ output keyVaultUri string = security.outputs.keyVaultUri
 output hubVnetId string = networking.outputs.hubVnetId
 
 @description('AI Gateway URL (empty if not enabled)')
-output aiGatewayUrl string = enableAiGateway ? aiGateway.outputs.apimGatewayUrl : ''
+output aiGatewayUrl string = aiGateway.?outputs.apimGatewayUrl ?? ''
+
+@description('Demo app URL (empty if not deployed)')
+output demoAppUrl string = demoApp.?outputs.webAppUrl ?? ''
 
 @description('Control plane DINE policy initiative ID')
 output controlPlanePolicySetId string = controlPlaneDine.outputs.policySetDefinitionId
