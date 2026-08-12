@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Layers, Play, Shield, ExternalLink, Brain, Eye, DollarSign
 } from "lucide-react";
-import ArchitectureDiagram from "@/components/architecture/ArchitectureDiagram";
+import OverviewGroup from "@/components/overview/OverviewGroup";
 import CentralPlatform from "@/components/platform/CentralPlatform";
 import BUWorkspace from "@/components/workspace/BUWorkspace";
 import LiveProof from "@/components/proof/LiveProof";
@@ -153,7 +153,7 @@ export default function Home() {
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.2 }}
           >
-            {activeTab === "overview" && <ErrorBoundary fallbackTitle="Overview panel error"><ArchitectureDiagram /></ErrorBoundary>}
+            {activeTab === "overview" && <ErrorBoundary fallbackTitle="Overview panel error"><OverviewGroup /></ErrorBoundary>}
             {activeTab === "platform" && <ErrorBoundary fallbackTitle="Central Platform panel error"><CentralPlatform /></ErrorBoundary>}
             {activeTab === "workspace" && <ErrorBoundary fallbackTitle="BU Workspace panel error"><BUWorkspace /></ErrorBoundary>}
             {activeTab === "proof" && <ErrorBoundary fallbackTitle="Live Proof panel error"><LiveProof /></ErrorBoundary>}
