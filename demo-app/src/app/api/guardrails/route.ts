@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
       timestamp: new Date().toISOString(),
 
       // Prompt-level filter (input guardrails)
-      promptFilters: promptFilterResults.map((pf: any) => ({
+      promptFilters: promptFilterResults.map((pf: { prompt_index?: number; content_filter_results?: unknown; content_filter_result?: unknown }) => ({
         promptIndex: pf.prompt_index,
         filters: pf.content_filter_results || pf.content_filter_result || {},
       })),

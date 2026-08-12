@@ -272,7 +272,7 @@ export default function MultiLoadTest() {
                     <YAxis tick={{ fill: "#94a3b8", fontSize: 12 }} axisLine={{ stroke: "#2d3561" }} tickFormatter={(v) => `${v}ms`} />
                     <Tooltip
                       contentStyle={{ background: "#1a1f36", border: "1px solid #2d3561", borderRadius: "8px" }}
-                      formatter={(value: any) => [`${value}ms`, "Avg Latency"]}
+                      formatter={(value) => [`${value}ms`, "Avg Latency"]}
                     />
                     <Bar dataKey="latency" radius={[4, 4, 0, 0]}>
                       {buLatencyData.map((entry, i) => (
@@ -298,7 +298,7 @@ export default function MultiLoadTest() {
                     <YAxis dataKey="y" tick={{ fill: "#94a3b8", fontSize: 10 }} axisLine={{ stroke: "#2d3561" }} tickFormatter={(v) => `${v}ms`} />
                     <Tooltip
                       contentStyle={{ background: "#1a1f36", border: "1px solid #2d3561", borderRadius: "8px" }}
-                      formatter={(value: any, name: any) => [name === "y" ? `${value}ms` : value, name === "y" ? "Latency" : "Request"]}
+                      formatter={(value, name) => [name === "y" ? `${value}ms` : value, name === "y" ? "Latency" : "Request"]}
                     />
                     <Scatter data={scatterData} fill="#8b5cf6">
                       {scatterData.map((entry, i) => (

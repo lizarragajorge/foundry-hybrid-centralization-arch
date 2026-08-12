@@ -133,13 +133,13 @@ const SEVERITY_COLORS: Record<string, string> = {
   high: "text-rose-400",
 };
 
-function parseFilters(raw: any): FilterCategory[] {
+function parseFilters(raw: unknown): FilterCategory[] {
   if (!raw || typeof raw !== "object") return [];
 
   const categories: FilterCategory[] = [];
-  for (const [key, value] of Object.entries(raw)) {
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
     if (typeof value === "object" && value !== null) {
-      const v = value as any;
+      const v = value as { severity?: FilterCategory["severity"]; filtered?: boolean };
       categories.push({
         name: key,
         severity: v.severity || (v.filtered ? "high" : "safe"),

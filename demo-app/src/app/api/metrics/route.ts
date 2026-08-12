@@ -58,7 +58,7 @@ export async function GET() {
     // Also fetch per-deployment metrics (ModelDeploymentId dimension)
     const perDeployMetricsUrl = `https://management.azure.com${resourceId}/providers/Microsoft.Insights/metrics?api-version=2024-02-01&metricnames=TotalCalls,TotalTokens,ProcessedPromptTokens,GeneratedTokens&aggregation=Total&interval=PT1H&timespan=${startTime}/${endTime}&$filter=ModelDeploymentId eq '*'`;
 
-    let perDeployment: Record<string, Record<string, number>> = {};
+    const perDeployment: Record<string, Record<string, number>> = {};
     try {
       const perDeployRes = await fetch(perDeployMetricsUrl, {
         headers: { Authorization: `Bearer ${tokenResponse.token}` },
@@ -68,7 +68,7 @@ export async function GET() {
         for (const value of perDeployData.value || []) {
           const metricName = value.name?.value || "";
           for (const ts of value.timeseries || []) {
-            const deployId = ts.metadatavalues?.find((m: any) => m.name?.value === "ModelDeploymentId")?.value || "unknown";
+            const deployId = ts.metadatavalues?.find((m: { name?: { value?: string }; value?: string }) => m.name?.value === "ModelDeploymentId")?.value || "unknown";
             if (!perDeployment[deployId]) perDeployment[deployId] = {};
             let total = 0;
             for (const dp of ts.data || []) total += dp.total || 0;
