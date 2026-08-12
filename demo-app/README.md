@@ -114,7 +114,7 @@ Static showcase of deployed governance controls:
 | Concern | Approach |
 |---------|----------|
 | **No browser credentials** | All Azure calls go through server-side API routes (`/api/*`) |
-| **Authentication** | `AzureCliCredential` — picks up your `az login` session |
+| **Authentication** | `DefaultAzureCredential` — chains Managed Identity → Azure CLI (`az login`) → env vars |
 | **Token management** | Entra ID tokens acquired per-request server-side, never cached in browser |
 | **API keys** | Local auth disabled on Foundry resource — API keys don't work |
 | **Env vars** | No `NEXT_PUBLIC_` prefix on secrets — server-only |
