@@ -3,101 +3,58 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Layers, Play, BarChart3, Shield, ShieldAlert,
-  ExternalLink, Brain, Swords, DollarSign, Eye, Gauge, BookOpen, Bot
+  Layers, Play, Shield, ExternalLink, Brain, Eye, DollarSign
 } from "lucide-react";
-import ArchitectureDiagram from "@/components/architecture/ArchitectureDiagram";
-import SimulationPanel from "@/components/simulation/SimulationPanel";
-import TelemetryDashboard from "@/components/dashboard/TelemetryDashboard";
-import GovernanceShowcase from "@/components/governance/GovernanceShowcase";
-import ModelArena from "@/components/arena/ModelArena";
-import CostCalculator from "@/components/cost/CostCalculator";
-import RequestTraceViewer from "@/components/trace/RequestTraceViewer";
-import MultiLoadTest from "@/components/loadtest/MultiLoadTest";
-import GuardrailsDemo from "@/components/guardrails/GuardrailsDemo";
-import ModelCatalog from "@/components/catalog/ModelCatalog";
-import AgentGatewayDemo from "@/components/agent/AgentGatewayDemo";
+import OverviewGroup from "@/components/overview/OverviewGroup";
+import CentralPlatform from "@/components/platform/CentralPlatform";
+import BUWorkspace from "@/components/workspace/BUWorkspace";
+import LiveProof from "@/components/proof/LiveProof";
+import FinOps from "@/components/finops/FinOps";
 import BUFilterBar from "@/components/ui/BUFilterBar";
 import { BUProvider } from "@/lib/bu-context";
 import { SectionHeader } from "@/components/ui/shared";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 
 const tabs = [
-  { id: "architecture", label: "Architecture", icon: <Layers size={16} /> },
-  { id: "catalog", label: "Model Catalog", icon: <BookOpen size={16} /> },
-  { id: "agent", label: "Agent Gateway", icon: <Bot size={16} /> },
-  { id: "simulation", label: "Simulation", icon: <Play size={16} /> },
-  { id: "arena", label: "Arena", icon: <Swords size={16} /> },
-  { id: "trace", label: "Trace", icon: <Eye size={16} /> },
-  { id: "loadtest", label: "Load Test", icon: <Gauge size={16} /> },
-  { id: "telemetry", label: "Telemetry", icon: <BarChart3 size={16} /> },
-  { id: "cost", label: "Cost", icon: <DollarSign size={16} /> },
-  { id: "guardrails", label: "Guardrails", icon: <ShieldAlert size={16} /> },
-  { id: "governance", label: "Governance", icon: <Shield size={16} /> },
+  { id: "overview", label: "Hybrid Overview", icon: <Layers size={16} /> },
+  { id: "platform", label: "Central Platform", icon: <Shield size={16} /> },
+  { id: "workspace", label: "BU Workspace", icon: <Play size={16} /> },
+  { id: "proof", label: "Live Proof", icon: <Eye size={16} /> },
+  { id: "finops", label: "Chargeback", icon: <DollarSign size={16} /> },
 ] as const;
 
 type TabId = (typeof tabs)[number]["id"];
 
 const tabMeta: Record<TabId, { title: string; subtitle: string; badge: string }> = {
-  architecture: {
-    title: "Hybrid Architecture",
-    subtitle: "Interactive visualization of the centralized AI CoE hub with federated BU spoke projects",
-    badge: "LIVE DEPLOYMENT",
+  overview: {
+    title: "Hybrid Architecture Overview",
+    subtitle: "How the org decentralizes AI consumption while centralizing identity, models, policy, and security",
+    badge: "CENTRALIZE + FEDERATE",
   },
-  catalog: {
-    title: "Model Catalog",
-    subtitle: "Central IT provisions models on the platform — BU developers deploy only what they're approved for",
-    badge: "GOVERNANCE",
+  platform: {
+    title: "Central Platform (AI CoE Hub)",
+    subtitle: "The functions central IT owns once for every BU — model catalog, governance & security, and the shared agent gateway",
+    badge: "CENTRALIZED",
   },
-  agent: {
-    title: "Agent Gateway",
-    subtitle: "External agents call centralized models through the APIM AI Gateway — per-BU policy enforcement, zero Azure credentials",
-    badge: "AGENT + GATEWAY",
+  workspace: {
+    title: "Business Unit Workspace",
+    subtitle: "Federated self-service: run scoped AI workloads, compare models, and test guardrails per business unit",
+    badge: "FEDERATED",
   },
-  simulation: {
-    title: "BU Simulations",
-    subtitle: "Run live AI workloads through each Business Unit project against centralized model deployments",
-    badge: "INTERACTIVE",
+  proof: {
+    title: "Live Proof",
+    subtitle: "Watch a request pass every central security checkpoint, then push concurrent multi-BU load under TPM governance",
+    badge: "LIVE",
   },
-  telemetry: {
-    title: "Observability Dashboard",
-    subtitle: "Real-time Azure Monitor metrics from the centralized Foundry resource",
-    badge: "REAL-TIME",
-  },
-  arena: {
-    title: "Model Comparison Arena",
-    subtitle: "Side-by-side GPT-4o vs GPT-4o-mini — compare quality, latency, and cost on identical prompts",
-    badge: "HEAD-TO-HEAD",
-  },
-  trace: {
-    title: "Live Request Trace",
-    subtitle: "Watch a real API request flow through every security checkpoint of the hybrid architecture",
-    badge: "ANIMATED",
-  },
-  loadtest: {
-    title: "Multi-BU Load Test",
-    subtitle: "Fire simultaneous requests from all Business Units to demonstrate TPM governance under pressure",
-    badge: "CONCURRENT",
-  },
-  cost: {
-    title: "Cost Attribution",
-    subtitle: "Per-BU and per-model cost breakdown with real-time usage tracking and optimization insights",
-    badge: "FINANCIAL",
-  },
-  guardrails: {
-    title: "Content Safety Guardrails",
-    subtitle: "Live testing of Azure AI Content Safety filters — watch harmful prompts get blocked in real time",
-    badge: "RESPONSIBLE AI",
-  },
-  governance: {
-    title: "Governance & Security",
-    subtitle: "Azure Policy, RBAC, network isolation, and Zero Trust controls",
-    badge: "ENFORCED",
+  finops: {
+    title: "Chargeback & Telemetry",
+    subtitle: "Cross-subscription billed cost per BU alongside real-time token accrual and Azure Monitor telemetry",
+    badge: "CHARGEBACK",
   },
 };
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<TabId>("architecture");
+  const [activeTab, setActiveTab] = useState<TabId>("overview");
 
   return (
     <BUProvider>
@@ -185,7 +142,7 @@ export default function Home() {
             subtitle={tabMeta[activeTab].subtitle}
             badge={tabMeta[activeTab].badge}
           />
-          {["telemetry", "cost"].includes(activeTab) && <BUFilterBar />}
+          {["finops"].includes(activeTab) && <BUFilterBar />}
         </div>
 
         <AnimatePresence mode="wait">
@@ -196,17 +153,11 @@ export default function Home() {
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.2 }}
           >
-            {activeTab === "architecture" && <ErrorBoundary fallbackTitle="Architecture panel error"><ArchitectureDiagram /></ErrorBoundary>}
-            {activeTab === "catalog" && <ErrorBoundary fallbackTitle="Model Catalog panel error"><ModelCatalog /></ErrorBoundary>}
-            {activeTab === "agent" && <ErrorBoundary fallbackTitle="Agent Gateway panel error"><AgentGatewayDemo /></ErrorBoundary>}
-            {activeTab === "simulation" && <ErrorBoundary fallbackTitle="Simulation panel error"><SimulationPanel /></ErrorBoundary>}
-            {activeTab === "arena" && <ErrorBoundary fallbackTitle="Arena panel error"><ModelArena /></ErrorBoundary>}
-            {activeTab === "trace" && <ErrorBoundary fallbackTitle="Trace panel error"><RequestTraceViewer /></ErrorBoundary>}
-            {activeTab === "loadtest" && <ErrorBoundary fallbackTitle="Load Test panel error"><MultiLoadTest /></ErrorBoundary>}
-            {activeTab === "telemetry" && <ErrorBoundary fallbackTitle="Telemetry panel error"><TelemetryDashboard /></ErrorBoundary>}
-            {activeTab === "cost" && <ErrorBoundary fallbackTitle="Cost panel error"><CostCalculator /></ErrorBoundary>}
-            {activeTab === "guardrails" && <ErrorBoundary fallbackTitle="Guardrails panel error"><GuardrailsDemo /></ErrorBoundary>}
-            {activeTab === "governance" && <ErrorBoundary fallbackTitle="Governance panel error"><GovernanceShowcase /></ErrorBoundary>}
+            {activeTab === "overview" && <ErrorBoundary fallbackTitle="Overview panel error"><OverviewGroup /></ErrorBoundary>}
+            {activeTab === "platform" && <ErrorBoundary fallbackTitle="Central Platform panel error"><CentralPlatform /></ErrorBoundary>}
+            {activeTab === "workspace" && <ErrorBoundary fallbackTitle="BU Workspace panel error"><BUWorkspace /></ErrorBoundary>}
+            {activeTab === "proof" && <ErrorBoundary fallbackTitle="Live Proof panel error"><LiveProof /></ErrorBoundary>}
+            {activeTab === "finops" && <ErrorBoundary fallbackTitle="FinOps panel error"><FinOps /></ErrorBoundary>}
           </motion.div>
         </AnimatePresence>
       </main>

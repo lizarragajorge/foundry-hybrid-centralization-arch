@@ -101,7 +101,7 @@ The demo app (`demo-app/`) follows secure-by-default practices:
 | Concern | Approach |
 |---------|----------|
 | Credentials in browser | **Never** — all Azure calls go through `/api/*` server routes |
-| Token lifetime | Per-request acquisition via `AzureCliCredential` — no caching |
+| Token lifetime | Per-request acquisition via `DefaultAzureCredential` — no caching |
 | Env vars | Server-only (no `NEXT_PUBLIC_` prefix on secrets) |
 | App Insights connection string | [Not a secret](https://learn.microsoft.com/en-us/azure/azure-monitor/app/opentelemetry-configuration#connection-string) — write-only telemetry ingestion |
 | Input validation | Deserialized and type-checked in API routes before Azure calls |
@@ -116,6 +116,6 @@ The demo app (`demo-app/`) follows secure-by-default practices:
 - [ ] Populate Entra ID group object IDs for RBAC
 - [ ] Enable customer-managed keys if required by compliance
 - [ ] Configure alert action groups with team email addresses
-- [ ] Deploy the demo app to Azure App Service with managed identity (replace `AzureCliCredential` with `ManagedIdentityCredential`)
+- [ ] Deploy the demo app to Azure App Service with a managed identity (`DefaultAzureCredential` auto-selects it — no code change needed)
 - [ ] Enable audit logging for Key Vault access events
 - [ ] Review and tighten NSG rules on PE subnets

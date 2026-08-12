@@ -291,7 +291,7 @@ param logRetentionDays = 365
 2. **DNS** — Configure private DNS zones for `cognitiveservices.azure.com` and `vault.azure.net`
 3. **Defender** — Verify Microsoft Defender for AI is active at the subscription level
 4. **CMK** — If required, pass `customerManagedKeyVaultId` and `customerManagedKeyName` to the hub module
-5. **Demo app hosting** — Deploy to Azure App Service with a managed identity and swap `AzureCliCredential` for `ManagedIdentityCredential`
+5. **Demo app hosting** — Deploy to Azure App Service with a managed identity; `DefaultAzureCredential` auto-selects it in-cloud (no code change needed)
 
 ---
 

@@ -1,6 +1,8 @@
 // Session-level usage tracker for real per-BU cost attribution
 // Every API call through the app logs here for live cost tracking
 
+import { buildBUMeta } from "./business-units";
+
 export type UsageRecord = {
   id: string;
   timestamp: string;
@@ -22,14 +24,7 @@ export const MODEL_PRICING: Record<string, { prompt: number; completion: number;
   "text-embedding-3-large": { prompt: 0.00013, completion: 0, label: "Embedding-3-Large", color: "#06b6d4" },
 };
 
-export const BU_META: Record<string, { color: string; displayName: string }> = {
-  "Finance & Risk": { color: "#10b981", displayName: "Finance & Risk" },
-  "Marketing & Sales": { color: "#3b82f6", displayName: "Marketing & Sales" },
-  "Engineering & Product": { color: "#f59e0b", displayName: "Engineering & Product" },
-  "Finance": { color: "#10b981", displayName: "Finance & Risk" },
-  "Marketing": { color: "#3b82f6", displayName: "Marketing & Sales" },
-  "Engineering": { color: "#f59e0b", displayName: "Engineering & Product" },
-};
+export const BU_META: Record<string, { color: string; displayName: string }> = buildBUMeta();
 
 export function calcCost(deployment: string, promptTokens: number, completionTokens: number): number {
   const rate = MODEL_PRICING[deployment];
