@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { DefaultAzureCredential } from "@azure/identity";
+import { displayBU } from "@/lib/business-units";
 
 // Cross-subscription chargeback via the Azure Cost Management Query API.
 // Returns ACTUAL billed cost (month-to-date), grouped by the `businessUnit`
@@ -26,24 +27,6 @@ const SUBSCRIPTIONS: Array<{ id: string; name: string; region: string }> = (() =
 })();
 
 const BU_TAG = process.env.AZURE_CHARGEBACK_TAG || "businessUnit";
-
-// Best-effort mapping of raw tag values to friendly BU display names.
-const BU_DISPLAY: Record<string, string> = {
-  finance: "Finance & Risk",
-  marketing: "Marketing & Sales",
-  engineering: "Engineering & Product",
-  operations: "Operations & Supply Chain",
-  legal: "Legal & Compliance",
-  "eu-compliance": "EU Compliance & Privacy",
-  "eu-sales": "EU Sales & Marketing",
-};
-
-function displayBU(raw: string | null): string {
-  if (!raw) return "Untagged / Shared";
-  const key = raw.toLowerCase();
-  if (BU_DISPLAY[key]) return BU_DISPLAY[key];
-  return raw.replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-}
 
 type QueryColumn = { name: string; type: string };
 
