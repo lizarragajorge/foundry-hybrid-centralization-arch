@@ -1,9 +1,10 @@
 "use client";
 
-import { BookOpen, Shield, Bot } from "lucide-react";
+import { BookOpen, Shield, Bot, UserPlus } from "lucide-react";
 import ModelCatalog from "@/components/catalog/ModelCatalog";
 import GovernanceShowcase from "@/components/governance/GovernanceShowcase";
 import AgentGatewayDemo from "@/components/agent/AgentGatewayDemo";
+import OnboardBU from "@/components/platform/OnboardBU";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { SubTabs } from "@/components/ui/SubTabs";
 
@@ -30,6 +31,16 @@ export default function CentralPlatform() {
           content: (
             <ErrorBoundary fallbackTitle="Governance error">
               <GovernanceShowcase />
+            </ErrorBoundary>
+          ),
+        },
+        {
+          id: "onboard",
+          label: "Onboard BU",
+          icon: <UserPlus size={14} />,
+          content: (
+            <ErrorBoundary fallbackTitle="Onboard BU error">
+              <OnboardBU />
             </ErrorBoundary>
           ),
         },
